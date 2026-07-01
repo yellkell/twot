@@ -17,7 +17,25 @@ export type RallyPhase =
   | 'serve' // dead ball hovering at the server, waiting for the first slap
   | 'rally' // in the air, being kept up
   | 'dead' // it bounced (and nobody half-volleyed it) — brief shame pause
-  | 'rotate'; // save ceremony: keeper swap + teleports
+  | 'rotate' // save ceremony: keeper swap + teleports
+  | 'punish'; // the TWOT ceremony: keeper marched down the slap line
+
+/** The TWOT ceremony, while `rally.phase === 'punish'`. */
+export interface PunishState {
+  /** The keeper who conceded the word. */
+  victim: string;
+  /** Attackers in arc order — each gets a window with the victim. */
+  queue: string[];
+  index: number;
+  /** Seconds left in the current attacker's window. */
+  timer: number;
+  /** Whether the current attacker has landed their slap. */
+  slapped: boolean;
+  /** World position of the victim's chest — where slaps aim. */
+  victimPos: Vector3;
+  /** Counts down after a slap lands (FX/haptics consumers watch this). */
+  slapPulse: number;
+}
 
 /** The one ball. World-space kinematic body + presentation scalars. */
 export const ball = {
@@ -68,6 +86,12 @@ export const rally = {
   shot: null as ShotFlag | null,
   /** A save just happened — GameFlowSystem runs the rotation ceremony. */
   pendingSave: null as { keeper: string; shooter: string } | null,
+  /** Goals conceded by the CURRENT keeper — lights the T·W·O·T letters. */
+  conceded: 0,
+  /** The word is complete — GameFlowSystem starts the ceremony. */
+  pendingTwot: false,
+  /** Live ceremony state while phase === 'punish'. */
+  punish: null as PunishState | null,
   /** Who serves next / is serving. */
   server: 'you',
   serveTimer: 0,
@@ -181,6 +205,28 @@ export function resetRally(server: string): void {
 /** Keeper of record right now. */
 export function keeperId(): string {
   return lineup.keeper;
+}
+
+/** The lit letters for the current keeper's shame: '', 'T', 'TW', 'TWO', 'TWOT'. */
+export function twotLetters(): string {
+  return 'TWOT'.slice(0, Math.min(4, rally.conceded));
+}
+
+/**
+ * The current attacker lands their ceremony slap: aura flows from the
+ * victim to the slapper, forever. Returns the pair for the caller's FX.
+ */
+export function landPunishSlap(): { slapper: string; victim: string } | null {
+  const p = rally.punish;
+  if (!p || p.slapped) return null;
+  const slapper = p.queue[p.index];
+  if (!slapper) return null;
+  playerById(slapper).stats.aura += 1;
+  playerById(p.victim).stats.aura -= 1;
+  p.slapped = true;
+  p.slapPulse = 0.25;
+  persist();
+  return { slapper, victim: p.victim };
 }
 
 /** Persist the club sheet — cheap, so call it on every scoring event. */

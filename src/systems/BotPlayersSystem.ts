@@ -19,12 +19,15 @@
 
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { app } from '../menu/appState.js';
-import { BOT, GOAL, HANDS } from '../config.js';
-import { lineup, roster, stationPose, type RosterPlayer } from '../game/roster.js';
-import { ball, gravityNow, keeperId, rally } from '../game/state.js';
+import { BOT, GOAL, HANDS, PALETTE, PUNISH } from '../config.js';
+import { lineup, playerById, roster, stationOf, stationPose, type RosterPlayer } from '../game/roster.js';
+import { ball, gravityNow, keeperId, landPunishSlap, rally } from '../game/state.js';
 import { strikeBall } from '../game/strike.js';
 import { arenaToWorld } from '../arena/arena.js';
 import { buildBotAvatar, type BotAvatar } from '../avatar/bots.js';
+import { spawnRisingText, spawnTouchPop } from '../fx/effects.js';
+import { pulseHand } from '../input/haptics.js';
+import * as sfx from '../audio/sfx.js';
 
 interface BotState {
   player: RosterPlayer;
@@ -88,8 +91,120 @@ export class BotPlayersSystem extends createSystem({}) {
     else this.serveWait = 0;
 
     for (const bot of this.bots) {
+      if (rally.phase === 'punish' && rally.punish) {
+        this.updatePunish(bot, delta);
+        continue;
+      }
+      bot.avatar.aura.visible = false;
       this.updateBody(bot, delta);
       if (rally.phase === 'serve' || rally.phase === 'rally') this.think(bot, delta);
+    }
+  }
+
+  // --- the TWOT ceremony ----------------------------------------------------
+
+  /** Ceremony bodies: the victim is presented, the slapper winds up. */
+  private updatePunish(bot: BotState, delta: number): void {
+    const p = rally.punish!;
+    const id = bot.player.id;
+    const isVictim = p.victim === id;
+    const slapperId = p.queue[p.index];
+    const isSlapper = slapperId === id;
+
+    // Where to stand: victims are presented in front of the current
+    // attacker; everyone else holds their station and watches.
+    if (isVictim) {
+      const at = stationPose(stationOf(slapperId));
+      arenaToWorld(at.x + at.fx * PUNISH.standoff, 0, at.z + at.fz * PUNISH.standoff, _base);
+    } else {
+      const pose = stationPose(stationOf(id));
+      arenaToWorld(pose.x, 0, pose.z, _base);
+    }
+    const k = 1 - Math.exp(-5 * delta);
+    bot.avatar.group.position.lerp(_base, k);
+
+    // A bot victim's chest is the slap target for whoever's up.
+    if (isVictim) {
+      p.victimPos.set(bot.avatar.group.position.x, 1.35, bot.avatar.group.position.z);
+    }
+
+    // Face the drama: the victim faces their slapper, the room watches the victim.
+    if (isVictim) {
+      const at = stationPose(stationOf(slapperId));
+      arenaToWorld(at.x, 0, at.z, _target);
+      _look.copy(_target).sub(bot.avatar.group.position);
+    } else {
+      _look.copy(p.victimPos).sub(bot.avatar.group.position);
+    }
+    _look.y = 0;
+    if (_look.lengthSq() > 1e-4) {
+      _q.setFromUnitVectors(FWD, _look.normalize());
+      bot.avatar.group.quaternion.slerp(_q, Math.min(1, delta * 8));
+    }
+
+    // Auras: gold on the slapper, shameful violet on the victim.
+    const aura = bot.avatar.aura;
+    aura.visible = isVictim || isSlapper;
+    if (aura.visible) {
+      aura.material.color.set(isVictim ? PALETTE.auraMinus : PALETTE.auraPlus);
+      bot.bobPhase += delta * 4;
+      aura.scale.setScalar(1.6 + Math.sin(bot.bobPhase) * 0.25);
+      aura.material.opacity = 0.5 + Math.sin(bot.bobPhase) * 0.15;
+    }
+
+    // Hands: slappers wind up high; victims droop; the crowd bobs.
+    const elapsed = PUNISH.window - p.timer;
+    for (let h = 0; h < 2; h++) {
+      const side = h === 0 ? -1 : 1;
+      const hand = bot.avatar.hands[h];
+      if (bot.strikePose > 0) {
+        _handTarget.copy(bot.strikePoint);
+      } else if (isSlapper && !p.slapped) {
+        // Both mitts raised, quivering with intent.
+        _handTarget.copy(bot.avatar.group.position);
+        _handTarget.x += side * 0.34;
+        _handTarget.y = 1.7 + Math.sin(bot.bobPhase * 3 + h) * 0.06;
+        _look.copy(p.victimPos).sub(bot.avatar.group.position).setY(0).normalize();
+        _handTarget.addScaledVector(_look, 0.25);
+      } else {
+        _handTarget.copy(bot.avatar.group.position);
+        _handTarget.x += side * 0.42;
+        _handTarget.y = isVictim ? 0.7 : 0.95 + Math.sin(bot.bobPhase + h * 1.7) * BOT.idleBobAmp;
+        _handTarget.z += 0.08;
+      }
+      _look.copy(p.victimPos).sub(_handTarget);
+      if (_look.lengthSq() > 1e-4) _q.setFromUnitVectors(DOWN, _look.normalize());
+      _handVel.copy(_handTarget).sub(hand.group.position).multiplyScalar(4);
+      hand.update(delta, _handTarget, _q, _handVel);
+    }
+    bot.strikePose = Math.max(0, bot.strikePose - delta);
+
+    // The slap itself, part-way into the window.
+    if (isSlapper && !p.slapped && elapsed >= PUNISH.botSlapAt) {
+      this.landCeremonySlap(bot, p.victimPos);
+    }
+  }
+
+  /** A bot lands its ceremony slap: aura moves, the crowd loves it. */
+  private landCeremonySlap(bot: BotState, victimPos: Vector3): void {
+    const res = landPunishSlap();
+    if (!res) return;
+    const victim = playerById(res.victim);
+    sfx.punishSlap();
+    spawnTouchPop(this.world, victimPos, PALETTE.auraPlus, 1.5);
+    _target.copy(bot.avatar.group.position);
+    _target.y = 1.9;
+    spawnRisingText(this.world, _target, '+1 AURA', '#ffd700', 0.7);
+    _target.copy(victimPos);
+    _target.y += 0.55;
+    spawnRisingText(this.world, _target, '-1 AURA', '#c86bff', 0.7);
+    bot.strikePose = 0.25;
+    bot.strikePoint.copy(victimPos);
+    bot.avatar.hands[1].impact(1);
+    if (victim.isHuman) {
+      // That's YOU taking the slap — feel it in both controllers.
+      pulseHand(this.world.session, 'left', 1, 220);
+      pulseHand(this.world.session, 'right', 1, 220);
     }
   }
 

@@ -16,8 +16,9 @@ import {
 import { app } from '../menu/appState.js';
 import { GOAL } from '../config.js';
 import { playerById } from '../game/roster.js';
-import { ball, keeperId, rally } from '../game/state.js';
+import { ball, keeperId, rally, twotLetters } from '../game/state.js';
 import { arenaRefs } from '../arena/arena.js';
+import { twotBoard } from '../arena/banner.js';
 import { AERO, aeroFont, glassPanel } from '../ui/aero.js';
 
 const W = 1024;
@@ -50,6 +51,7 @@ export class HudSystem extends createSystem({}) {
   }
 
   update(delta: number): void {
+    twotBoard?.tick(delta); // the letter-pop punch runs every frame
     const show = app.state === 'playing';
     this.mesh.visible = show;
     if (!show) return;
@@ -94,7 +96,7 @@ export class HudSystem extends createSystem({}) {
       ctx.fillText('● LIVE', W / 2 + 190, 58);
     }
 
-    // Keeper, right.
+    // Keeper, right — with their letters of shame so far.
     const gk = playerById(keeperId());
     ctx.textAlign = 'right';
     ctx.font = aeroFont(30, 800);
@@ -103,6 +105,12 @@ export class HudSystem extends createSystem({}) {
     ctx.font = aeroFont(44, 900);
     ctx.fillStyle = `#${gk.accent.toString(16).padStart(6, '0')}`;
     ctx.fillText(`${gk.name} · ${Math.floor(rally.keeperClock)}s`, W - 52, 122);
+    const letters = twotLetters();
+    if (letters) {
+      ctx.font = aeroFont(34, 900);
+      ctx.fillStyle = rally.conceded >= 3 ? AERO.danger : AERO.sun;
+      ctx.fillText(letters, W - 52, 164);
+    }
 
     // Message line.
     if (rally.message) {

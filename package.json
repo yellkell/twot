@@ -1,7 +1,7 @@
 {
-  "name": "keep-it-up",
+  "name": "twot",
   "version": "0.1.0",
-  "description": "KEEP IT UP — a WebXR playground keep-ups game: one keeper, five attackers arced around the goal, giant rubber sports hands, a beach ball that shrinks and catches fire as the rally combo climbs. Built on the Immersive Web SDK, harvested from Iron Balls Boxing.",
+  "description": "TWOT — a WebXR playground keep-ups game: one keeper, five attackers, giant rubber sports hands, a ball that shrinks and catches fire as the combo climbs. Concede four goals and the letters spell TWOT: the keeper faces the slap line and aura changes hands. Built on the Immersive Web SDK, harvested from Iron Balls Boxing.",
   "type": "module",
   "private": true,
   "scripts": {

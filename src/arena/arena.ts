@@ -26,7 +26,7 @@ import {
 } from 'three';
 import type { World } from '@iwsdk/core';
 import { COURT, OCTAGON_VERTICES, PALETTE, PLATFORM } from '../config.js';
-import { human, lineup, playerById, stationOf, stationPose } from '../game/roster.js';
+import { human, lineup, playerById, stationOf, stationPose, type StationPose } from '../game/roster.js';
 import { octagonSlab } from './octagon.js';
 import { buildGoal } from './goal.js';
 import { createTitleBanner } from './banner.js';
@@ -171,20 +171,23 @@ export interface AnchorTarget {
 }
 
 /**
- * Where arena-root must sit so the human's station lands at the world
- * origin with the station's facing direction pointing down world -z.
+ * Where arena-root must sit so an arbitrary arena-local pose lands at the
+ * world origin with its facing direction pointing down world -z.
  */
-export function anchorTarget(): AnchorTarget {
-  const station = stationOf(human.id);
-  const pose = stationPose(station);
-  // Yaw that turns the station's arena-local facing onto world -z.
+export function anchorTargetFor(pose: StationPose): AnchorTarget {
+  // Yaw that turns the pose's arena-local facing onto world -z.
   const yaw = Math.atan2(pose.fx, -pose.fz);
-  // Rotate the station position by yaw, then translate it to the origin.
+  // Rotate the pose position by yaw, then translate it to the origin.
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
   const px = pose.x * cos + pose.z * sin;
   const pz = -pose.x * sin + pose.z * cos;
   return { x: -px, z: -pz, yaw };
+}
+
+/** The anchor for the human's current station. */
+export function anchorTarget(): AnchorTarget {
+  return anchorTargetFor(stationPose(stationOf(human.id)));
 }
 
 /** Snap the sports centre onto the human's current station. */

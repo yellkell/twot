@@ -11,14 +11,17 @@
  */
 
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
-import { Euler } from 'three';
+import { Euler, type Sprite } from 'three';
 import { app } from '../menu/appState.js';
-import { HANDS } from '../config.js';
+import { HANDS, PALETTE } from '../config.js';
 import { human } from '../game/roster.js';
-import { ball, rally } from '../game/state.js';
+import { ball, landPunishSlap, rally } from '../game/state.js';
 import { strikeBall } from '../game/strike.js';
 import { buildSportsHand, type SportsHand } from '../avatar/hands.js';
+import { glowSprite } from '../materials/glow.js';
+import { spawnRisingText, spawnTouchPop } from '../fx/effects.js';
 import { pulseHand } from '../input/haptics.js';
+import * as sfx from '../audio/sfx.js';
 
 const HAND_NAMES = ['left', 'right'] as const;
 
@@ -62,6 +65,7 @@ const _vel = new Vector3();
 
 export class HandsSystem extends createSystem({}) {
   private hands: [SportsHand, SportsHand] | null = null;
+  private auras: Sprite[] = [];
   private trackers: [VelocityTracker, VelocityTracker] = [new VelocityTracker(), new VelocityTracker()];
   private time = 0;
 
@@ -70,6 +74,13 @@ export class HandsSystem extends createSystem({}) {
     const right = buildSportsHand(human.accent, false);
     this.scene.add(left.group, right.group);
     this.hands = [left, right];
+    // Golden ceremony auras — lit only when it's YOUR turn to slap.
+    for (const hand of this.hands) {
+      const aura = glowSprite(PALETTE.auraPlus, 0.5, 0.55);
+      aura.visible = false;
+      hand.group.add(aura);
+      this.auras.push(aura);
+    }
   }
 
   update(delta: number): void {
@@ -109,6 +120,42 @@ export class HandsSystem extends createSystem({}) {
           }
         }
       }
+
+      this.updateCeremony(hand, h);
+    }
+  }
+
+  /** Your turn in the slap line: golden hands, and the slap itself. */
+  private updateCeremony(hand: SportsHand, h: number): void {
+    const p = rally.punish;
+    const myTurn = rally.phase === 'punish' && !!p && p.queue[p.index] === human.id;
+    const aura = this.auras[h];
+    if (aura) {
+      aura.visible = myTurn && !p!.slapped;
+      if (aura.visible) {
+        aura.material.opacity = 0.45 + Math.sin(this.time * 6 + h) * 0.15;
+        aura.scale.setScalar(0.5 + Math.sin(this.time * 6 + h) * 0.08);
+      }
+    }
+    if (!myTurn || p!.slapped) return;
+
+    const reach = HANDS.contactRadius + 0.3; // the keeper's whole sorry torso
+    if (hand.palmWorld.distanceToSquared(p!.victimPos) > reach * reach) return;
+    if (_vel.length() < HANDS.minSlapSpeed) return;
+
+    const res = landPunishSlap();
+    if (!res) return;
+    hand.impact(1);
+    sfx.punishSlap();
+    pulseHand(this.world.session, HAND_NAMES[h], 1, 160);
+    spawnTouchPop(this.world, p!.victimPos, PALETTE.auraPlus, 1.6);
+    _vel.set(0, 0.55, 0).add(p!.victimPos);
+    spawnRisingText(this.world, _vel, '-1 AURA', '#c86bff', 0.7);
+    const head = this.playerHeadEntity?.object3D;
+    if (head) {
+      head.getWorldPosition(_vel);
+      _vel.y += 0.5;
+      spawnRisingText(this.world, _vel, '+1 AURA', '#ffd700', 0.7);
     }
   }
 }

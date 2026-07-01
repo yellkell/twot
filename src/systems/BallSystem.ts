@@ -105,7 +105,8 @@ export class BallSystem extends createSystem({}) {
 
   update(delta: number): void {
     this.time += delta;
-    const show = app.state === 'playing' && rally.phase !== 'idle';
+    // The ball sits out the TWOT ceremony — all eyes on the keeper.
+    const show = app.state === 'playing' && rally.phase !== 'idle' && rally.phase !== 'punish';
     this.group.visible = show;
     if (!show) return;
 
@@ -115,9 +116,17 @@ export class BallSystem extends createSystem({}) {
         break;
       case 'rally':
       case 'dead':
-      case 'rotate':
-        this.integrate(delta, rally.phase === 'rally');
+      case 'rotate': {
+        // Substep long frames so a fast ball can't tunnel the floor or the
+        // goal plane when the frame rate hiccups.
+        let remaining = delta;
+        while (remaining > 0) {
+          const dt = Math.min(remaining, 1 / 45);
+          this.integrate(dt, rally.phase === 'rally');
+          remaining -= dt;
+        }
         break;
+      }
     }
 
     this.present(delta);

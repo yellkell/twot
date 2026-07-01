@@ -13,12 +13,15 @@
 
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { app } from '../menu/appState.js';
-import { GOAL, RALLY } from '../config.js';
+import { GOAL, PUNISH, RALLY } from '../config.js';
 import { playerById } from '../game/roster.js';
-import { ball, gravityNow, keeperId, persist, rally, setMessage } from '../game/state.js';
-import { arenaRefs, worldToArena } from '../arena/arena.js';
+import { ball, gravityNow, keeperId, persist, rally, setMessage, twotLetters } from '../game/state.js';
+import { arenaRefs, arenaToWorld, worldToArena } from '../arena/arena.js';
+import { twotBoard } from '../arena/banner.js';
 import { spawnFireImpact, spawnRisingText, spawnTouchPop } from '../fx/effects.js';
 import * as sfx from '../audio/sfx.js';
+
+const _pop = new Vector3();
 
 const _local = new Vector3();
 const _prev = new Vector3();
@@ -31,7 +34,10 @@ export class GoalSystem extends createSystem({}) {
   private checkedHitAt = -1;
 
   update(delta: number): void {
-    if (app.state !== 'playing' || (rally.phase !== 'rally' && rally.phase !== 'dead')) {
+    // Track the ball in EVERY in-play phase so the serve→rally transition
+    // never leaves a one-frame blind spot at the plane; only rally frames
+    // get a verdict.
+    if (app.state !== 'playing' || rally.phase === 'idle' || rally.phase === 'punish') {
       this.hasPrev = false;
       return;
     }
@@ -40,14 +46,16 @@ export class GoalSystem extends createSystem({}) {
     _qInv.copy(arenaRefs.root.quaternion).invert();
     _vLocal.copy(ball.vel).applyQuaternion(_qInv);
 
-    // The net catches anything flapping about inside the cage.
+    // The net catches anything flapping about inside the cage — strictly
+    // BEHIND the line (so it can't snag an incoming shot), and damped
+    // exponentially so low frame rates can't freeze the ball dead.
     if (
-      _local.z < 0.05 &&
+      _local.z < 0 &&
       _local.z > -GOAL.depth - 0.3 &&
       Math.abs(_local.x) < GOAL.width / 2 + 0.3 &&
       _local.y < GOAL.height + 0.3
     ) {
-      ball.vel.multiplyScalar(Math.max(0, 1 - 6 * delta));
+      ball.vel.multiplyScalar(Math.exp(-6 * delta));
     }
 
     if (rally.phase === 'rally') {
@@ -151,15 +159,33 @@ export class GoalSystem extends createSystem({}) {
     }
     rally.score += banked;
 
+    // --- THE TWOT LAW: light the keeper's next letter, big enough for all. ---
+    rally.conceded += 1;
+    const letters = twotLetters();
+    const complete = rally.conceded >= PUNISH.letters;
+    twotBoard?.setLit(rally.conceded, true);
+    sfx.twotLetter(rally.conceded);
+    // The letter pop rises out of the goal mouth where everyone's looking.
+    arenaToWorld(0, GOAL.height * 0.75, 0.6, _pop);
+    spawnRisingText(this.world, _pop, `${letters}!`, complete ? '#ff5252' : '#ffffff', 1.6 + rally.conceded * 0.3);
+
     sfx.goalHorn();
     spawnFireImpact(this.world, ball.pos);
     spawnRisingText(this.world, ball.pos, 'GOAL!', '#9be82a', 1.3);
-    setMessage(`${flavour}GOAL! ${scorer.name} +${banked}`, '#9be82a', 3.2);
+
+    const gk = playerById(keeperId());
+    if (complete) {
+      sfx.twotComplete();
+      setMessage(`T·W·O·T! ${gk.name} IS TWOT — form the line!`, '#ff5252', PUNISH.intro + 1);
+      rally.pendingTwot = true;
+    } else {
+      setMessage(`${flavour}GOAL! ${scorer.name} +${banked} — that's "${letters}"`, '#9be82a', 3.2);
+    }
 
     rally.shot = null;
     rally.combo = 0;
     rally.phase = 'dead';
-    rally.serveTimer = RALLY.serveDelay + 1.4;
+    rally.serveTimer = complete ? PUNISH.intro : RALLY.serveDelay + 1.4;
     rally.server = keeperId(); // keeper digs it out of the net and restarts
     persist();
   }

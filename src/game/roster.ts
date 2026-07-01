@@ -26,6 +26,11 @@ export interface PlayerStats {
   /** Times they've taken the gloves — averages keeperSeconds. */
   keeperStints: number;
   bestCombo: number;
+  /**
+   * AURA. Earned by slapping a TWOTed keeper (+1 each), lost by being the
+   * TWOTed keeper (−1 per slap taken). Can go negative. Aura is forever.
+   */
+  aura: number;
 }
 
 export interface RosterPlayer {
@@ -48,6 +53,7 @@ function freshStats(): PlayerStats {
     keeperSeconds: 0,
     keeperStints: 0,
     bestCombo: 0,
+    aura: 0,
   };
 }
 

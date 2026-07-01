@@ -63,5 +63,5 @@ World.create(container, {
   world.registerSystem(FXSystem);
 
   // eslint-disable-next-line no-console
-  console.info('[KEEP IT UP] World ready — hands big, ball up.');
+  console.info('[TWOT] World ready — hands big, ball up.');
 });

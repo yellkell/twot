@@ -22,6 +22,7 @@ import {
 } from 'three';
 import { buildSportsHand, type SportsHand } from './hands.js';
 import { HANDS } from '../config.js';
+import { glowSprite } from '../materials/glow.js';
 
 function glossMat(color: number, emissive = 0, intensity = 0): MeshPhysicalMaterial {
   return new MeshPhysicalMaterial({
@@ -66,6 +67,8 @@ export interface BotAvatar {
   head: Group;
   /** World-space sports hands, driven by BotPlayersSystem. */
   hands: [SportsHand, SportsHand];
+  /** Ceremony aura halo: gold for a slapper, violet for the TWOTed. */
+  aura: Sprite;
 }
 
 export function buildBotAvatar(accent: number, name: string): BotAvatar {
@@ -103,5 +106,10 @@ export function buildBotAvatar(accent: number, name: string): BotAvatar {
     buildSportsHand(accent, false, HANDS.scale * 0.8),
   ];
 
-  return { group, head, hands };
+  const aura = glowSprite(0xffd700, 1.7, 0.55);
+  aura.position.y = 1.15;
+  aura.visible = false;
+  group.add(aura);
+
+  return { group, head, hands, aura };
 }

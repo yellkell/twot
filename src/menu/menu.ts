@@ -19,6 +19,7 @@ import {
 import { app } from './appState.js';
 import { avgKeeperTime, roster } from '../game/roster.js';
 import { rally } from '../game/state.js';
+import { drawFootball } from '../arena/banner.js';
 import { AERO, aeroFont, glassPanel, headline, pillButton, swoosh } from '../ui/aero.js';
 
 export type PanelId = 'play' | 'stats' | 'howto';
@@ -73,11 +74,13 @@ function makePanel(
   return { id, mesh, redraw, hitTest };
 }
 
-/** Centre — the marquee and the big friendly PLAY pill. */
+/** Centre — the marquee (the O is a football, obviously) + the PLAY pill. */
 function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
   glassPanel(ctx, 8, 8, PW - 16, PH - 16, { radius: 34, bubbles: 8, stroke: hover ? AERO.lime : AERO.stroke });
   swoosh(ctx, 30, 96, PW - 120, 46);
-  headline(ctx, 'KEEP IT UP', PW / 2, 66, 64, AERO.aqua);
+  headline(ctx, 'TW', PW / 2 - 92, 66, 84, AERO.aqua);
+  drawFootball(ctx, PW / 2 + 46, 64, 38, 1);
+  headline(ctx, 'T', PW / 2 + 138, 66, 84, AERO.aqua);
 
   pillButton(ctx, 86, 130, PW - 172, 92, 'PLAY', AERO.lime, hover);
 
@@ -116,9 +119,9 @@ function drawStats(ctx: CanvasRenderingContext2D, hover: boolean): void {
   glassPanel(ctx, 8, 8, W - 16, H - 16, { radius: 34, stroke: hover ? AERO.aqua : AERO.stroke });
   headline(ctx, 'CLUB SHEET', W / 2, 52, 44, AERO.aqua);
 
-  const cols = [110, 208, 268, 328, 396, 464, 524, 584];
-  const heads = ['', 'GLS', 'SHT', 'SAV', 'GK⌀', 'PAS', 'H-V', 'CMB'];
-  ctx.font = aeroFont(20, 800);
+  const cols = [100, 182, 238, 294, 356, 418, 476, 534, 592];
+  const heads = ['', 'GLS', 'SHT', 'SAV', 'GK⌀', 'PAS', 'H-V', 'CMB', 'AURA'];
+  ctx.font = aeroFont(19, 800);
   ctx.fillStyle = AERO.textDim;
   heads.forEach((h, i) => {
     if (h) ctx.fillText(h, cols[i], 104);
@@ -127,18 +130,22 @@ function drawStats(ctx: CanvasRenderingContext2D, hover: boolean): void {
   let y = 146;
   for (const p of roster) {
     ctx.textAlign = 'left';
-    ctx.font = aeroFont(22, 900);
+    ctx.font = aeroFont(21, 900);
     ctx.fillStyle = `#${p.accent.toString(16).padStart(6, '0')}`;
-    ctx.fillText('●', 34, y);
+    ctx.fillText('●', 26, y);
     ctx.fillStyle = AERO.text;
-    ctx.fillText(p.name, 62, y);
+    ctx.fillText(p.name, 52, y);
     ctx.textAlign = 'center';
-    ctx.font = aeroFont(21, 700);
+    ctx.font = aeroFont(20, 700);
     const s = p.stats;
     const row = [s.goals, s.shots, s.saves, avgKeeperTime(p), s.passes, s.halfVolleys, s.bestCombo];
     row.forEach((val, i) => {
       ctx.fillText(String(val), cols[i + 1], y);
     });
+    // Aura, signed and coloured — the number everybody actually checks.
+    ctx.font = aeroFont(20, 900);
+    ctx.fillStyle = s.aura > 0 ? '#c99700' : s.aura < 0 ? '#9b30d0' : AERO.textDim;
+    ctx.fillText(s.aura > 0 ? `+${s.aura}` : String(s.aura), cols[8], y);
     y += 46;
   }
 
@@ -165,17 +172,18 @@ function drawHowto(ctx: CanvasRenderingContext2D, hover: boolean): void {
     ['ONE BOUNCE', 'dead — unless you hit it AS it lands'],
     ['HALF VOLLEY', 'that counts. and it counts BIG'],
     ['SAVED?', 'shooter goes in goal. keeper goes wide'],
+    ['T·W·O·T', 'concede 4 and face the slap line: ±AURA'],
   ];
-  let y = 106;
+  let y = 102;
   for (const [head, body] of lines) {
     ctx.textAlign = 'left';
-    ctx.font = aeroFont(21, 900);
+    ctx.font = aeroFont(20, 900);
     ctx.fillStyle = AERO.aquaDeep;
     ctx.fillText(head, 36, y);
-    ctx.font = aeroFont(19, 700);
+    ctx.font = aeroFont(18, 700);
     ctx.fillStyle = AERO.text;
-    ctx.fillText(body, 182, y);
-    y += 40;
+    ctx.fillText(body, 176, y);
+    y += 36;
   }
   ctx.textAlign = 'center';
 }

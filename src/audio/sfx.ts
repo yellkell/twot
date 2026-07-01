@@ -264,6 +264,37 @@ export function serveReady(): void {
   tone({ freq: 523, type: 'triangle', dur: 0.12, gain: 0.12, delay: 0.09 });
 }
 
+/** A TWOT letter lighting up — a stadium-organ stab, one step per letter. */
+export function twotLetter(n: number): void {
+  const base = [196, 233, 262, 311][Math.max(0, Math.min(3, n - 1))];
+  for (const mult of [1, 1.5, 2]) {
+    tone({ freq: base * mult, type: 'sawtooth', dur: 0.5, gain: 0.09 });
+  }
+  tone({ freq: base * 4, type: 'triangle', dur: 0.3, gain: 0.1, delay: 0.05 });
+  whooshNoise(0.4, 0.1, 200, 900);
+  crowd(0.8, 0.1, 260, 1000, 0.1);
+}
+
+/** The word completes — doom klaxon + the crowd smelling blood. */
+export function twotComplete(): void {
+  for (const d of [0, 0.5]) {
+    tone({ freq: 311, type: 'square', dur: 0.32, gain: 0.11, delay: d });
+    tone({ freq: 233, type: 'square', dur: 0.34, gain: 0.11, delay: d + 0.28 });
+  }
+  tone({ freq: 98, to: 45, type: 'sawtooth', dur: 1.2, gain: 0.16, delay: 0.2 });
+  crowd(2.0, 0.18, 200, 1200, 0.3);
+  whistle(0.6, 0.12, 1.0);
+}
+
+/** A ceremony slap landing on the TWOTed keeper — meaty, and funny. */
+export function punishSlap(): void {
+  tone({ freq: 190, to: 55, type: 'sine', dur: 0.2, gain: 0.36 });
+  whooshNoise(0.1, 0.3, 500, 150);
+  tone({ freq: 950, to: 380, type: 'sawtooth', dur: 0.07, gain: 0.07 });
+  crowd(0.9, 0.16, 300, 1400, 0.1); // the "OOOOH"
+  [1175, 1568].forEach((f, i) => tone({ freq: f, type: 'triangle', dur: 0.12, gain: 0.08, delay: 0.12 + i * 0.08 }));
+}
+
 /** UI: a bubble popping (this is an aero game now). */
 export function uiClick(): void {
   tone({ freq: 620, to: 940, type: 'sine', dur: 0.06, gain: 0.12 });

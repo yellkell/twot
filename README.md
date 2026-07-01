@@ -1,4 +1,4 @@
-# KEEP IT UP ⚽🙌
+# TW⚽T
 
 A WebXR **passthrough** sports game for Meta Quest, built on
 [Meta's Immersive Web SDK](https://github.com/facebook/immersive-web-sdk) and
@@ -8,7 +8,8 @@ synth SFX kit and the ECS architecture all live on here).
 It's the British playground classic: **one keeper, five attackers** stood on
 pedestals arced around a five-a-side goal like a basketball three-point line
 — except everyone's wearing **enormous floppy rubber sports hands**, and the
-ball starts the size of a beach ball.
+ball starts the size of a beach ball. The title sign above the goal spells
+**TWOT** with a football for the O. That sign is also the scoreboard of doom.
 
 ## The rules
 
@@ -24,14 +25,27 @@ ball starts the size of a beach ball.
   spin **curves** (Magnus lift is simulated for real).
 - **The rotation.** Keeper saves your shot? **You take the gloves.** The old
   keeper teleports to a far platform and everyone between shuffles one
-  pedestal toward the centre. The whole sports centre glides around you when
-  it's your turn to move.
+  pedestal toward the centre.
+
+## THE TWOT LAW
+
+Every goal a keeper concedes lights a letter on the board, with a giant pop
+everyone can see: **T… TW… TWO… TWOT.** Four letters and the keeper LOSES:
+
+1. They're marched down the line and presented to **each attacker in turn**,
+   who gets a couple of seconds to **slap them** with the big floppy hands.
+2. Every landed slap moves **AURA**: **+1** to the slapper (golden glow),
+   **−1** to the keeper (shameful violet glow). Aura is a persistent stat.
+   Aura is forever.
+3. The game resets — **with the same keeper still in goal**, on a fresh word.
+
+If YOU get TWOTed, the sports centre drags you down the line itself.
 
 ## Stats — both positions, every player
 
 Persistent (localStorage) per player — you *and* the five bots: goals,
-shots, saves, **average time as keeper**, passes, half volleys, best combo.
-Check the CLUB SHEET panel in the lobby.
+shots, saves, **average time as keeper**, passes, half volleys, best combo,
+and **aura**. Check the CLUB SHEET panel in the lobby.
 
 ## Running it
 

@@ -16,10 +16,28 @@
 
 import { createSystem, InputComponent, Vector3 } from '@iwsdk/core';
 import { app, type AppState } from '../menu/appState.js';
-import { BALL, LOST_BALL_TIMEOUT, RALLY } from '../config.js';
-import { applySaveRotation, human, lineup, playerById, roster, stationOf, stationPose } from '../game/roster.js';
+import { BALL, LOST_BALL_TIMEOUT, PUNISH, RALLY } from '../config.js';
+import {
+  applySaveRotation,
+  human,
+  lineup,
+  playerById,
+  roster,
+  stationOf,
+  stationPose,
+  type StationPose,
+} from '../game/roster.js';
 import { ball, keeperId, persist, rally, resetRally, setMessage } from '../game/state.js';
-import { anchorTarget, anchorToHuman, arenaRefs, arenaToWorld, syncStations, type AnchorTarget } from '../arena/arena.js';
+import {
+  anchorTarget,
+  anchorTargetFor,
+  anchorToHuman,
+  arenaRefs,
+  arenaToWorld,
+  syncStations,
+  type AnchorTarget,
+} from '../arena/arena.js';
+import { twotBoard } from '../arena/banner.js';
 import { spawnRisingText, spawnTouchPop } from '../fx/effects.js';
 import * as sfx from '../audio/sfx.js';
 
@@ -70,10 +88,16 @@ export class GameFlowSystem extends createSystem({}) {
         break;
       case 'dead':
         rally.serveTimer -= delta;
-        if (rally.serveTimer <= 0) this.beginServe();
+        if (rally.serveTimer <= 0) {
+          if (rally.pendingTwot) this.beginPunish();
+          else this.beginServe();
+        }
         break;
       case 'rotate':
         this.tickRotation(delta);
+        break;
+      case 'punish':
+        this.tickPunish(delta);
         break;
     }
   }
@@ -85,6 +109,10 @@ export class GameFlowSystem extends createSystem({}) {
     rally.bestCombo = 0;
     rally.goals = {};
     rally.keeperClock = 0;
+    rally.conceded = 0;
+    rally.pendingTwot = false;
+    rally.punish = null;
+    twotBoard?.setLit(0);
     playerById(keeperId()).stats.keeperStints += 1;
     syncStations();
     anchorToHuman();
@@ -173,6 +201,104 @@ export class GameFlowSystem extends createSystem({}) {
     return best;
   }
 
+  // --- the TWOT ceremony -------------------------------------------------------
+
+  /** Four letters conceded: the keeper is marched down the slap line. */
+  private beginPunish(): void {
+    rally.pendingTwot = false;
+    rally.phase = 'punish';
+    rally.punish = {
+      victim: keeperId(),
+      queue: [...lineup.arc],
+      index: 0,
+      timer: PUNISH.window,
+      slapped: false,
+      victimPos: new Vector3(),
+      slapPulse: 0,
+    };
+    sfx.rotateCue();
+    const victim = playerById(keeperId());
+    setMessage(
+      victim.isHuman ? 'YOU ARE TWOT — face the line…' : `${victim.name} IS TWOT — get a slap in!`,
+      '#ff5252',
+      PUNISH.window,
+    );
+  }
+
+  /**
+   * Presenting-the-victim pose: `standoff` metres in front of the current
+   * attacker, facing back at them.
+   */
+  private punishPose(): StationPose {
+    const p = rally.punish!;
+    const st = stationOf(p.queue[p.index]);
+    const at = stationPose(st);
+    return {
+      x: at.x + at.fx * PUNISH.standoff,
+      z: at.z + at.fz * PUNISH.standoff,
+      fx: -at.fx,
+      fz: -at.fz,
+    };
+  }
+
+  private tickPunish(delta: number): void {
+    const p = rally.punish;
+    if (!p) {
+      rally.phase = 'dead';
+      return;
+    }
+    p.slapPulse = Math.max(0, p.slapPulse - delta);
+    p.timer -= delta;
+
+    if (playerById(p.victim).isHuman) {
+      // YOU lost: the sports centre drags you down the line, slapper by
+      // slapper. Glide the arena so you stand presented before each one.
+      const t = anchorTargetFor(this.punishPose());
+      const root = arenaRefs.root;
+      const k = 1 - Math.exp(-4 * delta);
+      root.position.x += (t.x - root.position.x) * k;
+      root.position.z += (t.z - root.position.z) * k;
+      root.rotation.y += shortestAngle(root.rotation.y, t.yaw) * k;
+      root.updateMatrixWorld(true);
+      const head = this.playerHeadEntity?.object3D;
+      if (head) head.getWorldPosition(p.victimPos);
+      else p.victimPos.set(0, 1.5, 0);
+    }
+    // (Bot victims position themselves — BotPlayersSystem owns their bodies.)
+
+    if (p.timer <= 0) {
+      p.index += 1;
+      if (p.index >= p.queue.length) {
+        this.endPunish();
+        return;
+      }
+      p.timer = PUNISH.window;
+      p.slapped = false;
+      sfx.serveReady();
+      const slapper = playerById(p.queue[p.index]);
+      setMessage(
+        slapper.isHuman ? 'YOUR TURN — slap them with everything' : `${slapper.name} steps up…`,
+        '#ffb226',
+        PUNISH.window,
+      );
+    }
+  }
+
+  /** Debt paid. Same keeper, fresh word, play on. */
+  private endPunish(): void {
+    const victim = playerById(rally.punish?.victim ?? keeperId());
+    rally.punish = null;
+    rally.conceded = 0;
+    twotBoard?.setLit(0);
+    anchorToHuman();
+    rally.phase = 'dead';
+    rally.serveTimer = 1.2;
+    rally.server = keeperId(); // the same keeper stays in goal
+    sfx.kickoffWhistle();
+    setMessage(`${victim.name} stays in goal — fresh word, play on`, '#eaf6ff', 2.6);
+    persist();
+  }
+
   // --- the rotation ceremony ---------------------------------------------------
 
   private beginRotation(): void {
@@ -193,6 +319,8 @@ export class GameFlowSystem extends createSystem({}) {
     rally.lineupVersion += 1;
     playerById(newKeeper).stats.keeperStints += 1;
     rally.keeperClock = 0;
+    rally.conceded = 0; // new keeper, fresh word
+    twotBoard?.setLit(0);
     syncStations();
     this.glideTo = anchorTarget();
 

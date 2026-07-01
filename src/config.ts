@@ -16,7 +16,29 @@
 
 import type { Vector2Tuple } from 'three';
 
-export const GAME_TITLE = 'KEEP IT UP';
+export const GAME_TITLE = 'TWOT';
+
+/**
+ * THE TWOT LAW. Every goal a keeper concedes lights a letter: T… TW… TWO…
+ * TWOT. Four letters and the keeper LOSES — they're marched down the line
+ * and every attacker gets a window to slap them with the big floppy hands.
+ * Slapper +aura, keeper −aura (aura is forever). Then the game resets with
+ * the SAME keeper still in goal.
+ */
+export const PUNISH = {
+  /** Goals conceded to complete the word and trigger the ceremony. */
+  letters: 4,
+  /** Seconds each attacker gets with the keeper in front of them. */
+  window: 2.6,
+  /** How far into their window a BOT swings the slap. */
+  botSlapAt: 1.1,
+  /** How far in front of the attacker the keeper is presented (m). */
+  standoff: 1.15,
+  /** Aura transferred per landed slap. */
+  aura: 1,
+  /** Pause after the 4th goal before the march begins. */
+  intro: 2.2,
+};
 
 /**
  * Every player stands on an octagonal pedestal (same silhouette as the Iron
@@ -225,6 +247,8 @@ export const PALETTE = {
   flame: 0xffc04d,
   whiteHot: 0xfff3cf,
   charcoal: 0x191b22,
+  auraPlus: 0xffd700, // golden glow on the slapper
+  auraMinus: 0x8b2dc4, // the shameful violet of a TWOTed keeper
 };
 
 /** Difficulty switch (lobby toggle). */
