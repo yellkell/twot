@@ -1,9 +1,9 @@
 /**
  * Tiny WebAudio sound kit — every sound is synthesised at runtime (no asset
- * files to ship or load), tuned to the game's industrial robot-wars palette:
- * struck plate steel, servos, pistons, furnace roar. The core building blocks
- * are `tone` (a glided oscillator), `whooshNoise` (bandpassed noise) and
- * `clank` (an inharmonic partial stack with a noisy attack — metal on metal).
+ * files to ship or load). The synth toolkit (`tone`, `whooshNoise`, `clank`,
+ * `servo`) is harvested straight from Iron Balls; the sound set on top is
+ * retuned for a sports centre: rubber thwacks, a pea whistle, pentatonic
+ * combo bells, an air horn and a crowd that lives in bandpassed noise.
  *
  * The AudioContext can only start inside a user gesture, so we unlock it on
  * the first DOM interaction; after that, sounds triggered from the frame loop
@@ -44,11 +44,6 @@ export function ensureAudio(): void {
   unlock();
 }
 
-/** The shared AudioContext (voice chat spatialises through it too). */
-export function audioContext(): AudioContext | null {
-  return getCtx();
-}
-
 function ready(): Ctx | null {
   const c = getCtx();
   if (!c) return null;
@@ -83,7 +78,7 @@ function tone(o: ToneOpts): void {
   osc.stop(t0 + dur + 0.03);
 }
 
-/** Bandpass-filtered noise burst — the basis of every whoosh. */
+/** Bandpass-filtered noise burst — the basis of every whoosh and crowd. */
 function whooshNoise(dur: number, gain: number, fromHz: number, toHz: number, delay = 0): void {
   const c = ready();
   if (!c) return;
@@ -108,11 +103,7 @@ function whooshNoise(dur: number, gain: number, fromHz: number, toHz: number, de
   src.start(t0);
 }
 
-/**
- * Struck plate steel: an inharmonic partial stack (plate-bell ratios, each
- * slightly detuned) over a sharp noise tick. `base` sets the pitch of the
- * plate, `dur` how long it rings.
- */
+/** Struck metal — kept for the goal frame ping. */
 function clank(base: number, gain = 0.2, dur = 0.3, delay = 0): void {
   const c = ready();
   if (!c) return;
@@ -132,268 +123,149 @@ function clank(base: number, gain = 0.2, dur = 0.3, delay = 0): void {
     osc.start(t0);
     osc.stop(t0 + d + 0.05);
   });
-  // The impact tick that sells the strike.
   whooshNoise(0.03, gain * 0.7, base * 4, base * 2, delay);
 }
 
-/** Servo whine: a narrow-banded saw gliding between two pitches. */
-function servo(from: number, to: number, dur: number, gain = 0.07, delay = 0): void {
-  const c = ready();
-  if (!c) return;
-  const t0 = c.currentTime + delay;
-  const osc = c.createOscillator();
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(from, t0);
-  osc.frequency.exponentialRampToValueAtTime(Math.max(1, to), t0 + dur);
-  const bp = c.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.Q.value = 7;
-  bp.frequency.setValueAtTime(from * 2, t0);
-  bp.frequency.exponentialRampToValueAtTime(Math.max(1, to * 2), t0 + dur);
-  const env = c.createGain();
-  env.gain.setValueAtTime(0.0001, t0);
-  env.gain.exponentialRampToValueAtTime(gain, t0 + 0.02);
-  env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-  osc.connect(bp).connect(env).connect(c._master!);
-  osc.start(t0);
-  osc.stop(t0 + dur + 0.05);
-}
-
-// --- Game sounds ---------------------------------------------------------
-
-/** Trigger pulled at the fist — a latch clacks and the furnace lights. */
-export function ignite(): void {
-  clank(1900, 0.05, 0.06); // igniter latch
-  whooshNoise(0.32, 0.15, 140, 850); // furnace catching
-  tone({ freq: 70, to: 46, type: 'sine', dur: 0.22, gain: 0.16 }); // sub thump
-}
-
-/** A punched ball leaving the fist — piston release into a hard whoosh. */
-export function throwWhoosh(): void {
-  clank(620, 0.06, 0.09); // piston knock
-  whooshNoise(0.42, 0.28, 280, 1600);
-  tone({ freq: 210, to: 70, type: 'triangle', dur: 0.18, gain: 0.18 });
-}
-
-/** Recall pulled — a winch servo spools the ball back in. */
-export function recall(): void {
-  servo(150, 520, 0.35, 0.09);
-  whooshNoise(0.32, 0.16, 1200, 300);
-  clank(880, 0.04, 0.06, 0.05);
-}
-
-/** The ball clamps back into the gauntlet. */
-export function catchBall(): void {
-  clank(430, 0.15, 0.14);
-  tone({ freq: 140, to: 88, type: 'triangle', dur: 0.08, gain: 0.18 });
-}
-
-/** Your ball lands on the opponent — anvil ring over a heavy body. */
-export function hitDealt(): void {
-  clank(540, 0.26, 0.35);
-  tone({ freq: 260, to: 78, type: 'sine', dur: 0.18, gain: 0.3 });
-}
-
 /**
- * Aim Training target impacts: disc = bright gong, cutout = hollow armour,
- * drone = a jackpot — rising bell run over a shattering clank.
+ * The referee's pea whistle: two close tones beating against each other with
+ * a touch of noise breath. `dur` short = a chirp, long = THE decision.
  */
-export function trainingTargetHit(kind: 0 | 1 | 2): void {
-  if (kind === 0) {
-    clank(920, 0.18, 0.42);
-    clank(1380, 0.08, 0.26, 0.015);
-    tone({ freq: 740, to: 980, type: 'triangle', dur: 0.11, gain: 0.12 });
-  } else if (kind === 1) {
-    clank(360, 0.18, 0.28);
-    tone({ freq: 150, to: 58, type: 'sawtooth', dur: 0.16, gain: 0.2 });
-    whooshNoise(0.09, 0.08, 520, 180);
-  } else {
-    clank(1100, 0.2, 0.4);
-    clank(1650, 0.1, 0.3, 0.02);
-    [880, 1109, 1319, 1760].forEach((f, i) =>
-      tone({ freq: f, type: 'triangle', dur: 0.14, gain: 0.14, delay: 0.04 + i * 0.07 }),
-    );
-    whooshNoise(0.3, 0.1, 900, 2600);
-  }
-}
-
-/** You take a hit: a chassis-rattling slam. */
-export function hitTaken(): void {
-  tone({ freq: 105, to: 36, type: 'sawtooth', dur: 0.3, gain: 0.3 });
-  clank(270, 0.16, 0.28, 0.01);
-  whooshNoise(0.12, 0.12, 380, 140);
-}
-
-/** Iron on iron: your orbiting ball parries theirs — hammer on anvil. */
-export function deflect(): void {
-  clank(1240, 0.22, 0.45);
-  clank(1860, 0.09, 0.25, 0.02);
-  whooshNoise(0.1, 0.1, 2600, 1000);
-}
-
-/** A spent ball slamming into the arena's far cage wall — distant boom. */
-export function wallThud(): void {
-  tone({ freq: 90, to: 38, type: 'sine', dur: 0.28, gain: 0.18 });
-  clank(180, 0.08, 0.3, 0.01);
-}
-
-/** A ball glancing off titan armour — bright, dead, no give. */
-export function armorClank(): void {
-  clank(1650, 0.2, 0.12);
-  clank(2300, 0.07, 0.07, 0.01);
-  whooshNoise(0.05, 0.08, 3200, 1400);
-}
-
-/** A ball finding the exposed core — deep bell + electric fizz. */
-export function coreHit(): void {
-  clank(420, 0.3, 0.5);
-  clank(840, 0.12, 0.3, 0.02);
-  tone({ freq: 1600, to: 320, type: 'sawtooth', dur: 0.22, gain: 0.09 });
-  tone({ freq: 190, to: 60, type: 'sine', dur: 0.26, gain: 0.28 });
-}
-
-// --- Arcade titan sounds ---------------------------------------------------
-
-/** Pit klaxon — the two-tone warning horn before a titan surfaces. */
-export function klaxon(): void {
-  for (const d of [0, 0.55]) {
-    tone({ freq: 392, type: 'square', dur: 0.24, gain: 0.1, delay: d });
-    tone({ freq: 311, type: 'square', dur: 0.26, gain: 0.1, delay: d + 0.24 });
-  }
-}
-
-/** The titan surfacing — hydraulics, grinding plate, a rising rumble. */
-export function titanRise(): void {
-  servo(60, 220, 2.2, 0.1);
-  whooshNoise(2.4, 0.14, 60, 240);
-  clank(120, 0.12, 0.6, 0.4);
-  clank(95, 0.14, 0.8, 1.3);
-}
-
-/** The titan's voice — a shuddering sub-bass roar through blown horns. */
-export function bossRoar(depth = 1): void {
-  const base = 58 / depth;
-  tone({ freq: base * 2.4, to: base, type: 'sawtooth', dur: 1.1, gain: 0.22 });
-  tone({ freq: base * 3.1, to: base * 1.4, type: 'square', dur: 0.9, gain: 0.08, delay: 0.05 });
-  whooshNoise(1.0, 0.16, 90 * depth, 300);
-  clank(70, 0.1, 0.9, 0.1);
-}
-
-/** An attack charging — a rising whine that ends exactly at the strike. */
-export function chargeWhine(dur: number): void {
-  servo(140, 980, dur, 0.09);
-  whooshNoise(dur, 0.05, 200, 1400);
-}
-
-/** A titan fist crashing onto the platform. */
-export function slamImpact(): void {
-  tone({ freq: 80, to: 26, type: 'sine', dur: 0.42, gain: 0.4 });
-  clank(140, 0.24, 0.5, 0.01);
-  whooshNoise(0.18, 0.2, 300, 80);
-}
-
-/** The horizontal sweep scything across the platform. */
-export function sweepWhoosh(): void {
-  whooshNoise(0.32, 0.3, 500, 2200);
-  clank(340, 0.08, 0.16, 0.06);
-}
-
-/** The eye beam firing down its marked strip. */
-export function beamBlast(): void {
-  tone({ freq: 1900, to: 240, type: 'sawtooth', dur: 0.34, gain: 0.14 });
-  whooshNoise(0.34, 0.22, 2400, 500);
-  tone({ freq: 120, to: 55, type: 'sine', dur: 0.3, gain: 0.22, delay: 0.02 });
-}
-
-/** One mortar shell bursting on the platform. */
-export function mortarThump(): void {
-  tone({ freq: 130, to: 42, type: 'sine', dur: 0.24, gain: 0.26 });
-  whooshNoise(0.1, 0.12, 700, 200);
-  clank(240, 0.08, 0.2, 0.01);
-}
-
-/** The titan's core venting open — an exposed opportunity. */
-export function coreExposed(): void {
-  servo(900, 260, 0.4, 0.08);
-  tone({ freq: 620, to: 940, type: 'triangle', dur: 0.18, gain: 0.1, delay: 0.05 });
-  whooshNoise(0.4, 0.08, 400, 1100);
-}
-
-/** UI: a relay snapping closed. */
-export function uiClick(): void {
-  clank(1500, 0.05, 0.04);
-  tone({ freq: 110, type: 'sine', dur: 0.04, gain: 0.08 });
-}
-
-/** One strike of the ring bell — long metallic decay. */
-function bellStrike(delay: number): void {
+function whistle(dur: number, gain = 0.16, delay = 0): void {
   const c = ready();
   if (!c) return;
   const t0 = c.currentTime + delay;
-  // Fundamental + inharmonic partials = a passable steel bell.
-  for (const [f, g, d] of [[660, 0.3, 1.1], [1320, 0.12, 0.7], [1980, 0.06, 0.45], [392, 0.08, 0.9]] as const) {
+  for (const f of [2093, 2217]) {
     const osc = c.createOscillator();
-    osc.type = 'sine';
+    osc.type = 'square';
     osc.frequency.value = f;
     const env = c.createGain();
     env.gain.setValueAtTime(0.0001, t0);
-    env.gain.exponentialRampToValueAtTime(g, t0 + 0.008);
-    env.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    env.gain.exponentialRampToValueAtTime(gain * 0.5, t0 + 0.01);
+    env.gain.setValueAtTime(gain * 0.5, t0 + dur * 0.8);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     osc.connect(env).connect(c._master!);
     osc.start(t0);
-    osc.stop(t0 + d + 0.05);
+    osc.stop(t0 + dur + 0.03);
   }
-  // The hammer hitting the bell.
-  whooshNoise(0.025, 0.16, 2800, 1500, delay);
+  whooshNoise(dur, gain * 0.3, 1800, 2600, delay);
 }
 
-/** DING DING — a round begins. */
-export function roundBell(): void {
-  bellStrike(0);
-  bellStrike(0.32);
+/** A crowd swell living in shaped noise — murmurs, oohs and roars. */
+function crowd(dur: number, gain: number, lowHz: number, highHz: number, delay = 0): void {
+  whooshNoise(dur, gain, lowHz, highHz, delay);
+  whooshNoise(dur * 0.8, gain * 0.6, lowHz * 1.6, highHz * 0.8, delay + dur * 0.15);
 }
 
-/** End-of-round cue. */
-export function roundEnd(win: boolean): void {
-  bellStrike(0);
-  if (win) {
-    tone({ freq: 523, type: 'triangle', dur: 0.1, gain: 0.2, delay: 0.25 });
-    tone({ freq: 784, type: 'triangle', dur: 0.12, gain: 0.2, delay: 0.35 });
-  } else {
-    tone({ freq: 392, to: 300, type: 'sine', dur: 0.2, gain: 0.2, delay: 0.25 });
+// --- Game sounds -----------------------------------------------------------
+
+/**
+ * THE SLAP — thick rubber on ball. Body thump + airy smack, pitched up a
+ * little as the rally climbs (the ball is smaller and angrier), with a bonus
+ * boom when it's a power shot.
+ */
+export function slap(power: number, combo: number): void {
+  const pitch = 1 + Math.min(1, combo / 12) * 0.5;
+  tone({ freq: 165 * pitch, to: 62 * pitch, type: 'sine', dur: 0.16, gain: 0.3 });
+  whooshNoise(0.12, 0.22, 320 * pitch, (900 + power * 900) * pitch);
+  // The rubbery squeak that sells "thick rubber".
+  tone({ freq: 820 * pitch, to: 430 * pitch, type: 'sawtooth', dur: 0.05, gain: 0.045 });
+  if (power > 0.7) {
+    tone({ freq: 95, to: 34, type: 'sine', dur: 0.3, gain: 0.32, delay: 0.01 });
+    whooshNoise(0.3, 0.18, 200, 1400, 0.01);
   }
 }
 
-/** End-of-match fanfare / sad cue. */
-export function matchEnd(win: boolean): void {
-  if (win) {
-    bellStrike(0);
-    bellStrike(0.24);
-    bellStrike(0.48);
-    whooshNoise(0.9, 0.16, 180, 1400, 0.18);
-    [196, 247, 294].forEach((f) =>
-      tone({ freq: f, to: f * 0.98, type: 'sawtooth', dur: 1.15, gain: 0.08, delay: 0.5 }),
-    );
-    [
-      [392, 494, 587],
-      [523, 659, 784],
-      [659, 784, 988],
-      [784, 988, 1175],
-    ].forEach((chord, i) => {
-      for (const f of chord) {
-        tone({ freq: f, type: 'triangle', dur: 0.34, gain: 0.16, delay: 0.68 + i * 0.28 });
-      }
-      clank(700 + i * 170, 0.05, 0.16, 0.72 + i * 0.28);
-    });
-    bellStrike(1.88);
-    tone({ freq: 1047, type: 'triangle', dur: 0.8, gain: 0.2, delay: 1.9 });
-    tone({ freq: 1319, type: 'triangle', dur: 0.7, gain: 0.12, delay: 1.92 });
-  } else {
-    bellStrike(0);
-    bellStrike(0.28);
-    bellStrike(0.56);
-    [392, 330, 262].forEach((f, i) =>
-      tone({ freq: f, to: f * 0.9, type: 'sine', dur: 0.24, gain: 0.2, delay: 0.7 + i * 0.16 }),
-    );
+/** The combo ladder: one pentatonic bell per completed pass, ever higher. */
+export function comboPop(combo: number): void {
+  const scale = [392, 440, 523, 587, 659, 784, 880, 1047, 1175, 1319, 1568, 1760];
+  const f = scale[Math.min(combo - 1, scale.length - 1)] ?? 392;
+  tone({ freq: f, type: 'triangle', dur: 0.16, gain: 0.16 });
+  tone({ freq: f * 2, type: 'sine', dur: 0.1, gain: 0.06, delay: 0.02 });
+}
+
+/** Third player in — the ball is LIVE. A bright two-note "go on then". */
+export function liveAlert(): void {
+  tone({ freq: 659, type: 'triangle', dur: 0.1, gain: 0.16 });
+  tone({ freq: 988, type: 'triangle', dur: 0.16, gain: 0.18, delay: 0.09 });
+  crowd(0.5, 0.06, 300, 900, 0.05);
+}
+
+/** The rally hits ignition — the furnace catches (Iron Balls' own ignite). */
+export function ignite(): void {
+  clank(1900, 0.04, 0.05);
+  whooshNoise(0.4, 0.16, 140, 850);
+  tone({ freq: 70, to: 46, type: 'sine', dur: 0.24, gain: 0.16 });
+}
+
+/** HALF VOLLEY! A snare-crack off the floor and a rising zing. */
+export function halfVolley(): void {
+  whooshNoise(0.06, 0.3, 900, 250);
+  tone({ freq: 140, to: 60, type: 'sine', dur: 0.12, gain: 0.3 });
+  tone({ freq: 440, to: 1320, type: 'sawtooth', dur: 0.22, gain: 0.07, delay: 0.03 });
+  crowd(0.6, 0.08, 350, 1000, 0.06);
+}
+
+/** The ball dies on the floor — flat bounce, sad honk, the whistle. */
+export function bounceDead(): void {
+  tone({ freq: 130, to: 70, type: 'sine', dur: 0.14, gain: 0.24 });
+  tone({ freq: 290, to: 120, type: 'sawtooth', dur: 0.3, gain: 0.09, delay: 0.12 });
+  whistle(0.35, 0.13, 0.22);
+  crowd(0.7, 0.05, 200, 500, 0.15); // the groan
+}
+
+/** A shot leaves a hand — sharp air. */
+export function shotWhoosh(): void {
+  whooshNoise(0.3, 0.2, 380, 1900);
+}
+
+/** GOAL — air horn, crowd roar, a little bell run on top. */
+export function goalHorn(): void {
+  for (const f of [233, 311, 466]) {
+    tone({ freq: f, type: 'sawtooth', dur: 0.85, gain: 0.09 });
   }
+  whooshNoise(0.9, 0.12, 180, 700);
+  crowd(1.6, 0.2, 250, 1400, 0.1);
+  [784, 988, 1175, 1568].forEach((f, i) =>
+    tone({ freq: f, type: 'triangle', dur: 0.16, gain: 0.12, delay: 0.25 + i * 0.09 }),
+  );
+}
+
+/** SAVED — a deep rubbery thud off the keeper's mitts and a crowd "OOH". */
+export function saveThump(): void {
+  tone({ freq: 110, to: 40, type: 'sine', dur: 0.26, gain: 0.34 });
+  whooshNoise(0.14, 0.2, 260, 90);
+  tone({ freq: 620, to: 300, type: 'sawtooth', dur: 0.06, gain: 0.05, delay: 0.01 });
+  crowd(0.9, 0.14, 220, 800, 0.08);
+}
+
+/** The ball pings off the goal frame. */
+export function postPing(): void {
+  clank(880, 0.2, 0.5);
+  crowd(0.6, 0.07, 250, 700, 0.1);
+}
+
+/** Rotation ceremony: whistle chirp + teleport shimmer per swap. */
+export function rotateCue(): void {
+  whistle(0.16, 0.12);
+  whistle(0.16, 0.12, 0.22);
+  [523, 659, 784].forEach((f, i) =>
+    tone({ freq: f, to: f * 1.4, type: 'sine', dur: 0.18, gain: 0.07, delay: 0.3 + i * 0.08 }),
+  );
+}
+
+/** Kick-off: one long blast, game on. */
+export function kickoffWhistle(): void {
+  whistle(0.5, 0.15);
+}
+
+/** Serve is up and waiting — a friendly ascending blip. */
+export function serveReady(): void {
+  tone({ freq: 392, type: 'triangle', dur: 0.09, gain: 0.1 });
+  tone({ freq: 523, type: 'triangle', dur: 0.12, gain: 0.12, delay: 0.09 });
+}
+
+/** UI: a bubble popping (this is an aero game now). */
+export function uiClick(): void {
+  tone({ freq: 620, to: 940, type: 'sine', dur: 0.06, gain: 0.12 });
+  whooshNoise(0.03, 0.05, 1200, 2600);
 }

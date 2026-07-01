@@ -1,6 +1,6 @@
 name: Deploy to Firebase Hosting
 
-# Builds FIRE FIGHT and publishes dist/ to Firebase Hosting (project
+# Builds KEEP IT UP and publishes dist/ to Firebase Hosting (project
 # arfi-b68f9 → https://arfi-b68f9.web.app). Pushes to main go LIVE; pull
 # requests get an ephemeral preview channel so you can test before merging.
 #

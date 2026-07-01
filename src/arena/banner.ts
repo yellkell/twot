@@ -1,7 +1,7 @@
 /**
- * The "FIRE FIGHT" title plate — a riveted, hazard-striped steel sign
- * floating high behind the opponent's pad, robot-wars pit-lane style.
- * Visible in the lobby; hidden during a bout.
+ * The "KEEP IT UP" title sign — a pane of aero glass floating above the goal
+ * like sports-centre signage: glossy gradient lettering, a lime swoosh, a
+ * one-line pitch. Always on; the live scoreboard hangs beneath it.
  */
 
 import {
@@ -10,15 +10,15 @@ import {
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
-  type Scene,
+  type Object3D,
 } from 'three';
-import { ARENA_GAP } from '../config.js';
-import { UI, hazardStrip, plate, stencilFont } from '../ui/industrial.js';
+import { GOAL } from '../config.js';
+import { AERO, aeroFont, glassPanel, headline, swoosh } from '../ui/aero.js';
 
 const W = 1024;
-const H = 512;
+const H = 400;
 
-export function createTitleBanner(scene: Scene): Mesh {
+export function createTitleBanner(parent: Object3D): Mesh {
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
@@ -26,46 +26,25 @@ export function createTitleBanner(scene: Scene): Mesh {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Smoked-steel plate with hazard rails top and bottom.
-  plate(ctx, 12, 12, W - 24, H - 24, { cut: 40, fill: 'rgba(12,13,17,0.62)', stroke: UI.amberSoft });
-  hazardStrip(ctx, 52, 40, W - 104, 26, UI.amber);
-  hazardStrip(ctx, 52, H - 66, W - 104, 26, UI.amber);
+  glassPanel(ctx, 10, 10, W - 20, H - 20, { radius: 60, bubbles: 10 });
+  swoosh(ctx, 40, 260, W - 300, 70, AERO.lime);
 
-  // Title: stencilled steel — FIRE in molten amber, FIGHT in arc-light blue.
-  const fire = ctx.createLinearGradient(0, 110, 0, 230);
-  fire.addColorStop(0, '#fff3cf');
-  fire.addColorStop(0.5, UI.emberBright);
-  fire.addColorStop(1, UI.ember);
-  ctx.font = stencilFont(128);
-  ctx.fillStyle = fire;
-  ctx.shadowColor = 'rgba(255,122,24,0.9)';
-  ctx.shadowBlur = 30;
-  ctx.fillText('FIRE', W / 2 - 190, 178);
-  ctx.shadowBlur = 0;
+  headline(ctx, 'KEEP IT UP', W / 2, 150, 150, AERO.aqua);
 
-  ctx.fillStyle = UI.text;
-  ctx.shadowColor = 'rgba(79,183,255,0.8)';
-  ctx.shadowBlur = 22;
-  ctx.fillText('FIGHT', W / 2 + 185, 178);
-  ctx.shadowBlur = 0;
-
-  ctx.font = '700 38px system-ui, sans-serif';
-  ctx.fillStyle = UI.textDim;
-  ctx.fillText('flaming-fist duels at a distance', W / 2, 272);
-
-  ctx.font = '700 34px system-ui, sans-serif';
-  ctx.fillStyle = UI.amberSoft;
-  ctx.fillText('hold trigger · ball orbits your fist', W / 2, 352);
-  ctx.fillText('punch to throw · trigger to recall', W / 2, 402);
+  ctx.font = aeroFont(40, 700);
+  ctx.fillStyle = AERO.text;
+  ctx.fillText('big hands · big ball · one bounce and it’s dead', W / 2, 282);
 
   const texture = new CanvasTexture(canvas);
   texture.minFilter = LinearFilter;
   const banner = new Mesh(
-    new PlaneGeometry(2.4, 1.2),
+    new PlaneGeometry(2.6, 1.02),
     new MeshBasicMaterial({ map: texture, transparent: true }),
   );
   banner.name = 'title-banner';
-  banner.position.set(0, 2.5, -ARENA_GAP - 1.2);
-  scene.add(banner);
+  // Hung above the goal, tilted a touch down at the arc.
+  banner.position.set(0, GOAL.height + 1.55, -0.4);
+  banner.rotation.x = -0.08;
+  parent.add(banner);
   return banner;
 }

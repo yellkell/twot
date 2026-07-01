@@ -1,15 +1,13 @@
 /**
- * The look foundation for passthrough Iron Balls Boxing.
+ * The look foundation for passthrough KEEP IT UP.
  *
- * In an immersive-AR session the player's real room IS the backdrop, so we do
- * NOT draw a sky dome, a big floor, or volumetric shafts — those would paint
- * over the passthrough feed. We keep neutral tone mapping plus a soft
- * warm-vs-cool image-based light so the iron, gloves and fire pick up gentle
- * tints (cool slate above, ember warmth below).
- *
- * The scene background is left transparent so passthrough shows through; if
- * the device can't do AR, IWSDK falls back to a VR session and we paint the
- * charcoal fallback colour.
+ * In an immersive-AR session the player's real room IS the sports hall, so
+ * we do NOT draw a sky dome or a big floor — those would paint over the
+ * passthrough feed. We keep neutral tone mapping plus a bright frutiger-aero
+ * image-based light: swimming-pool sky above, warm court sheen below, so the
+ * gloss white plastic, rubber hands and the ball pick up that
+ * sunny-leisure-centre light. If the device can't do AR, IWSDK falls back to
+ * a VR session and we paint a deep aqua backdrop.
  */
 
 import { Color, IBLGradient, type World } from '@iwsdk/core';
@@ -26,14 +24,14 @@ export function setupEnvironment(world: World): void {
 
   // Transparent backdrop so the AR passthrough feed shows through.
   world.scene.background = null;
-  world.renderer.setClearColor(new Color(PALETTE.charcoal), 0);
+  world.renderer.setClearColor(new Color(PALETTE.aquaDeep), 0);
 
-  // Cool slate sky, warm ember ground — lighting only, never a visible dome.
+  // Aero sky above, sunlit court below — lighting only, never a visible dome.
   const env = world.createTransformEntity(undefined, { persistent: true });
   env.addComponent(IBLGradient, {
-    sky: rgba(0xaebbd0),
-    equator: rgba(0xf2ede4),
-    ground: rgba(0xffb46a),
-    intensity: 1.05,
+    sky: rgba(PALETTE.sky),
+    equator: rgba(0xf6fbff),
+    ground: rgba(0xd8f0c8),
+    intensity: 1.15,
   });
 }
