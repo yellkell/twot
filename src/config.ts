@@ -107,8 +107,12 @@ export const GOAL = {
  * size, that takes a genuinely disgraceful slap.
  */
 export const FENCE = {
-  /** Arena-local z of the fence plane (just behind the net cage). */
-  z: -1.35,
+  /**
+   * Arena-local z of the fence plane. Pushed WELL behind the goal so it
+   * stands just inside the pavilion's far wall (hall ends at −15.5) —
+   * missed shots sail long before rattling home off the cage.
+   */
+  z: -12.5,
   /** 16 m wide — sails far past the platform arc (~±4.5) on both sides. */
   halfWidth: 8.0,
   height: 6.0, // three goals high
