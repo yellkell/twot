@@ -176,7 +176,7 @@ function drawHowto(ctx: CanvasRenderingContext2D, hover: boolean): void {
   headline(ctx, 'THE RULES', PW / 2, 54, 44, AERO.sun);
 
   const lines: Array<[string, string]> = [
-    ['KEEP IT UP', 'slap the ball with your big hands'],
+    ['KEEP IT UP', 'slap it — palms, fingers, or HEAD it'],
     ['3 TOUCHES', 'three players in — the ball is LIVE'],
     ['COMBO', 'every pass shrinks it… then it burns'],
     ['SHOOT', 'power-slap the live ball at the goal'],

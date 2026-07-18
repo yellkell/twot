@@ -32,9 +32,10 @@ import { glowSprite } from '../materials/glow.js';
 import * as sfx from '../audio/sfx.js';
 
 /**
- * A classic black-and-white football, painted once onto an equirect canvas:
- * white leather, black pentagons in offset rows, grey seams radiating to
- * the neighbouring (implied) hexagons.
+ * A geometrically CORRECT football, computed per-texel: the 12 black
+ * pentagons sit at the vertices of an icosahedron projected onto the
+ * sphere (exactly where a truncated-icosahedron ball puts them), so the
+ * pattern reads right from every angle — no smeared equirect rows.
  */
 function soccerBallTexture(): CanvasTexture {
   const W = 1024;
@@ -43,51 +44,77 @@ function soccerBallTexture(): CanvasTexture {
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
+  const img = ctx.createImageData(W, H);
 
-  // White leather with a whisper of shading toward the poles.
-  const base = ctx.createLinearGradient(0, 0, 0, H);
-  base.addColorStop(0, '#e9eef3');
-  base.addColorStop(0.5, '#fafcff');
-  base.addColorStop(1, '#e9eef3');
-  ctx.fillStyle = base;
-  ctx.fillRect(0, 0, W, H);
-
-  const pent = (cx: number, cy: number, r: number, rot: number): void => {
-    ctx.beginPath();
-    for (let i = 0; i < 5; i++) {
-      const a = rot + (i * Math.PI * 2) / 5;
-      const x = cx + Math.cos(a) * r;
-      const y = cy + Math.sin(a) * r;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+  // The 12 icosahedron vertex directions (normalized (0, ±1, ±φ) cycles).
+  const PHI = (1 + Math.sqrt(5)) / 2;
+  const raw: Array<[number, number, number]> = [];
+  for (const a of [-1, 1]) {
+    for (const b of [-PHI, PHI]) {
+      raw.push([0, a, b], [a, b, 0], [b, 0, a]);
     }
-    ctx.closePath();
-  };
-
-  /** Pentagon + its seam spokes toward the surrounding hexagons. */
-  const patch = (cx: number, cy: number, r: number, rot: number): void => {
-    ctx.strokeStyle = 'rgba(90,104,116,0.55)';
-    ctx.lineWidth = 4;
-    for (let i = 0; i < 5; i++) {
-      const a = rot + (i * Math.PI * 2) / 5;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
-      ctx.lineTo(cx + Math.cos(a) * r * 1.85, cy + Math.sin(a) * r * 1.85);
-      ctx.stroke();
-    }
-    ctx.fillStyle = '#14181d';
-    pent(cx, cy, r, rot);
-    ctx.fill();
-  };
-
-  // Middle row of pentagons, then offset rows toward each pole (drawn at
-  // both x-edges too so the texture wraps seamlessly).
-  const step = W / 5;
-  for (let i = -1; i <= 5; i++) {
-    patch(i * step + step / 2, H / 2, 62, -Math.PI / 2);
-    patch(i * step, H * 0.2, 46, Math.PI / 2);
-    patch(i * step, H * 0.8, 46, -Math.PI / 2);
   }
+  const inv = 1 / Math.hypot(1, PHI);
+  const centers = raw.map(([x, y, z]) => [x * inv, y * inv, z * inv] as const);
+  // Per-centre tangent frames for a stable pentagon orientation.
+  const frames = centers.map(([cx, cy, cz]) => {
+    const upx = Math.abs(cy) > 0.9 ? 1 : 0;
+    const upy = Math.abs(cy) > 0.9 ? 0 : 1;
+    let t1x = upy * cz - 0 * cy;
+    let t1y = 0 * cx - upx * cz;
+    let t1z = upx * cy - upy * cx;
+    const l = Math.hypot(t1x, t1y, t1z) || 1;
+    t1x /= l; t1y /= l; t1z /= l;
+    const t2x = cy * t1z - cz * t1y;
+    const t2y = cz * t1x - cx * t1z;
+    const t2z = cx * t1y - cy * t1x;
+    return { t1x, t1y, t1z, t2x, t2y, t2z };
+  });
+
+  const PENT_R = 0.31; // angular in-radius of each pentagon (radians)
+  const SEAM = 0.035; // grey seam ring width around the pentagon edge
+  const FIVE = (Math.PI * 2) / 5;
+
+  for (let py = 0; py < H; py++) {
+    const lat = Math.PI * (0.5 - (py + 0.5) / H);
+    const cl = Math.cos(lat);
+    const y = Math.sin(lat);
+    for (let px = 0; px < W; px++) {
+      const lon = ((px + 0.5) / W) * Math.PI * 2 - Math.PI;
+      const x = cl * Math.sin(lon);
+      const z = cl * Math.cos(lon);
+
+      // Leather base with soft shading.
+      let r = 246;
+      let g = 250;
+      let b = 253;
+      for (let i = 0; i < 12; i++) {
+        const c = centers[i];
+        const dot = x * c[0] + y * c[1] + z * c[2];
+        if (dot < 0.9) continue; // > ~25° away — can't be this pentagon
+        const ang = Math.acos(Math.min(1, dot));
+        if (ang > PENT_R / Math.cos(Math.PI / 5) + SEAM) continue;
+        // Azimuth about the centre → five-fold polygon radius.
+        const f = frames[i];
+        const u = x * f.t1x + y * f.t1y + z * f.t1z;
+        const v = x * f.t2x + y * f.t2y + z * f.t2z;
+        const az = Math.atan2(v, u);
+        const edge = PENT_R / Math.cos(((az % FIVE) + FIVE + FIVE / 2) % FIVE - FIVE / 2);
+        if (ang <= edge) {
+          r = 18; g = 22; b = 28; // the pentagon
+        } else if (ang <= edge + SEAM) {
+          r = 150; g = 162; b = 172; // stitched seam ring
+        }
+        break;
+      }
+      const o = (py * W + px) * 4;
+      img.data[o] = r;
+      img.data[o + 1] = g;
+      img.data[o + 2] = b;
+      img.data[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
 
   const tex = new CanvasTexture(canvas);
   tex.minFilter = LinearFilter;
@@ -260,10 +287,15 @@ export class BallSystem extends createSystem({}) {
       this.shell.quaternion.premultiply(_dq);
     }
 
-    // Burn-away crossfade: sports ball → fireball.
+    // Burn crossfade: the leather CHARS under the flames instead of fading
+    // out — the shell always keeps solid, alpha-writing pixels, so the ball
+    // never vanishes against raw passthrough (additive fire alone writes no
+    // alpha, which is exactly how it used to disappear overhead).
     const burn = Math.min(1, Math.max(0, (ball.heat - 0.25) / 0.9));
-    this.shellMat.opacity = 1 - burn;
-    this.shell.visible = burn < 0.98;
+    this.shellMat.opacity = 1 - burn * 0.35;
+    const char = 1 - burn * 0.82;
+    this.shellMat.color.setRGB(char, char * 0.92, char * 0.85);
+    this.shell.visible = true;
     const fireOn = ball.heat > 0.05;
     this.fire.group.visible = fireOn;
     if (fireOn) {

@@ -175,6 +175,13 @@ export function slap(power: number, combo: number): void {
   }
 }
 
+/** A header — the classic hollow leather thock off a forehead. */
+export function header(): void {
+  tone({ freq: 210, to: 95, type: 'sine', dur: 0.09, gain: 0.26 });
+  whooshNoise(0.05, 0.14, 500, 220);
+  tone({ freq: 620, to: 480, type: 'triangle', dur: 0.04, gain: 0.05 });
+}
+
 /** The combo ladder: one pentatonic bell per completed pass, ever higher. */
 export function comboPop(combo: number): void {
   const scale = [392, 440, 523, 587, 659, 784, 880, 1047, 1175, 1319, 1568, 1760];

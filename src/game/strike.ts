@@ -13,7 +13,7 @@
  */
 
 import { Vector3, type World } from '@iwsdk/core';
-import { BALL, HANDS, PALETTE, RALLY } from '../config.js';
+import { BALL, HANDS, HEADER, PALETTE, RALLY } from '../config.js';
 import { playerById } from './roster.js';
 import {
   ball,
@@ -46,6 +46,12 @@ export interface StrikeOpts {
   forcedVel?: Vector3;
   /** Bots: deliberate spin (curve shots). */
   forcedSpin?: Vector3;
+  /**
+   * A HEADER: the ball arriving at your skull counts even if the head is
+   * barely moving — gate on the ball's approach speed instead of swing
+   * speed, add a friendly upward pop, and damp the spin.
+   */
+  header?: boolean;
 }
 
 /**
@@ -65,7 +71,7 @@ export function strikeBall(
   if (rally.phase === 'serve' && strikerId !== rally.server) return null;
 
   const handSpeed = handVel.length();
-  if (handSpeed < HANDS.minSlapSpeed) return null;
+  if (!opts.header && handSpeed < HANDS.minSlapSpeed) return null;
 
   // Rehit window: the same player can't drum on it every frame.
   const since = rally.time - ball.lastHitAt;
@@ -76,22 +82,30 @@ export function strikeBall(
   if (_n.lengthSq() < 1e-6) _n.set(0, 1, 0);
   _n.normalize();
 
-  // Only strikes that actually push INTO the ball connect.
+  // Hands must push INTO the ball; a header just needs the ball arriving.
   const approach = handVel.dot(_n);
-  if (approach <= 0.05) return null;
+  if (opts.header) {
+    const arriving = -(ball.vel.dot(_n) - approach);
+    if (arriving < HEADER.minApproach) return null;
+  } else if (approach <= 0.05) {
+    return null;
+  }
 
-  const power = handSpeed >= HANDS.powerSpeed;
+  const power = opts.header ? handSpeed >= HEADER.powerSpeed : handSpeed >= HANDS.powerSpeed;
 
-  // Moving-palm reflection + a slice of carried hand velocity.
+  // Moving-surface reflection + a slice of carried velocity.
   const relN = ball.vel.dot(_n) - approach;
   if (relN < 0) ball.vel.addScaledVector(_n, -(1 + HANDS.restitution) * relN);
   ball.vel.addScaledVector(handVel, 0.3);
-  if (power) ball.vel.multiplyScalar(HANDS.powerGain / HANDS.slapGain);
+  if (power && !opts.header) ball.vel.multiplyScalar(HANDS.powerGain / HANDS.slapGain);
+  if (opts.header) ball.vel.y += HEADER.popUp; // headers sit the ball back up
   if (ball.vel.length() > BALL.maxSpeed) ball.vel.setLength(BALL.maxSpeed);
 
-  // Spin from the tangential swipe — the curve-shot coupling.
+  // Spin from the tangential swipe — the curve-shot coupling. Headers
+  // barely spin it (foreheads aren't rubber).
   _vt.copy(handVel).addScaledVector(_n, -approach);
   _spin.crossVectors(_n, _vt).multiplyScalar(HANDS.spinGain / (1 + ball.radius * 6));
+  if (opts.header) _spin.multiplyScalar(0.3);
   if (_spin.length() > BALL.maxSpin) _spin.setLength(BALL.maxSpin);
   ball.spin.copy(_spin);
 
