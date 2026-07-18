@@ -101,18 +101,20 @@ export const GOAL = {
 
 /**
  * The chain-link fence behind the goal — every sports centre has one.
- * It stands at the back of the net, runs wide beyond the posts and about
- * TWO GOALS high. Balls bounce off it and the rally stays alive; put one
- * OVER it (or wide past its edge) and YOU'RE in goal.
+ * It stands at the back of the net, runs WIDER than the whole platform arc
+ * and FOUR GOALS high. Balls bounce off it and the rally stays alive; put
+ * one over it (or wide past its edge) and YOU'RE in goal — and at this
+ * size, that takes a genuinely disgraceful slap.
  */
 export const FENCE = {
   /** Arena-local z of the fence plane (just behind the net cage). */
   z: -1.35,
-  halfWidth: 3.6, // 7.2 m wide — well beyond the 3 m goal
-  height: 4.0, // ~two goals high
+  /** 11 m wide — the far arc stations sit at ±3.6, platforms end ~±4.5. */
+  halfWidth: 5.5,
+  height: 8.0, // four goals high
   restitution: 0.72,
   /** Post spacing for the visual frame. */
-  postGap: 1.8,
+  postGap: 1.85,
 };
 
 /**
