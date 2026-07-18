@@ -24,9 +24,9 @@ ball starts the size of a beach ball (a proper black-and-white football, just hu
 - **Shooting.** Big slap = **power shot**. Swipe across the ball = spin, and
   spin **curves** (Magnus lift is simulated for real). Score before the ball
   is live and **you go in goal**.
-- **The fence.** A chain-link fence stands behind the goal, wide and two
-  goals high. Bounce the ball off it — the rally stays alive. Put it **over**
-  (or wide of it) and **you go in goal**.
+- **The fence.** A chain-link fence stands behind the goal — wider than the
+  whole platform arc and four goals (8 m) high. Bounce the ball off it — the
+  rally stays alive. Put it **over** (or wide of it) and **you go in goal**.
 - **Self keep-ups.** A soft, mostly-upward slap stays over YOUR head
   (juggle assist damps the sideways drift); smash it and physics takes over.
 - **The rotation.** Keeper saves your shot? **You take the gloves.** The old
