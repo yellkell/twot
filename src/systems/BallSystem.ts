@@ -7,7 +7,7 @@
  * CURVES flight. The floor is fatal: the first bounce starts the half-volley
  * clock; GameFlowSystem calls time of death when the window shuts.
  *
- * Presentation: a glossy six-panel aero beach ball that shrinks as the combo
+ * Presentation: a glossy black-and-white football that shrinks as the combo
  * climbs, then progressively burns away into the harvested Iron Balls fire
  * (molten shader core + corona + ember/trail pools) as the rally ignites.
  */
@@ -31,32 +31,64 @@ import { createFireVisual, spawnEmber, stampTrail, type FireVisual } from '../fx
 import { glowSprite } from '../materials/glow.js';
 import * as sfx from '../audio/sfx.js';
 
-/** Classic six-panel beach ball, painted once onto an equirect canvas. */
-function beachBallTexture(): CanvasTexture {
-  const W = 512;
-  const H = 256;
+/**
+ * A classic black-and-white football, painted once onto an equirect canvas:
+ * white leather, black pentagons in offset rows, grey seams radiating to
+ * the neighbouring (implied) hexagons.
+ */
+function soccerBallTexture(): CanvasTexture {
+  const W = 1024;
+  const H = 512;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
-  const panels = ['#f7fbff', '#29b6f6', '#f7fbff', '#9be82a', '#f7fbff', '#ffb226'];
-  const seg = W / panels.length;
-  panels.forEach((c, i) => {
-    ctx.fillStyle = c;
-    ctx.fillRect(i * seg, 0, seg + 1, H);
-  });
-  // Seam lines + a soft polar cap.
-  ctx.strokeStyle = 'rgba(8,58,94,0.25)';
-  ctx.lineWidth = 3;
-  for (let i = 0; i <= panels.length; i++) {
+
+  // White leather with a whisper of shading toward the poles.
+  const base = ctx.createLinearGradient(0, 0, 0, H);
+  base.addColorStop(0, '#e9eef3');
+  base.addColorStop(0.5, '#fafcff');
+  base.addColorStop(1, '#e9eef3');
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, W, H);
+
+  const pent = (cx: number, cy: number, r: number, rot: number): void => {
     ctx.beginPath();
-    ctx.moveTo(i * seg, 0);
-    ctx.lineTo(i * seg, H);
-    ctx.stroke();
+    for (let i = 0; i < 5; i++) {
+      const a = rot + (i * Math.PI * 2) / 5;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  };
+
+  /** Pentagon + its seam spokes toward the surrounding hexagons. */
+  const patch = (cx: number, cy: number, r: number, rot: number): void => {
+    ctx.strokeStyle = 'rgba(90,104,116,0.55)';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 5; i++) {
+      const a = rot + (i * Math.PI * 2) / 5;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      ctx.lineTo(cx + Math.cos(a) * r * 1.85, cy + Math.sin(a) * r * 1.85);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#14181d';
+    pent(cx, cy, r, rot);
+    ctx.fill();
+  };
+
+  // Middle row of pentagons, then offset rows toward each pole (drawn at
+  // both x-edges too so the texture wraps seamlessly).
+  const step = W / 5;
+  for (let i = -1; i <= 5; i++) {
+    patch(i * step + step / 2, H / 2, 62, -Math.PI / 2);
+    patch(i * step, H * 0.2, 46, Math.PI / 2);
+    patch(i * step, H * 0.8, 46, -Math.PI / 2);
   }
-  ctx.fillStyle = 'rgba(247,251,255,0.9)';
-  ctx.fillRect(0, 0, W, 12);
-  ctx.fillRect(0, H - 12, W, 12);
+
   const tex = new CanvasTexture(canvas);
   tex.minFilter = LinearFilter;
   tex.colorSpace = SRGBColorSpace;
@@ -82,7 +114,7 @@ export class BallSystem extends createSystem({}) {
 
   init(): void {
     this.shellMat = new MeshPhysicalMaterial({
-      map: beachBallTexture(),
+      map: soccerBallTexture(),
       roughness: 0.18,
       metalness: 0.0,
       clearcoat: 1.0,

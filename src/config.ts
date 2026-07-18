@@ -100,6 +100,22 @@ export const GOAL = {
 };
 
 /**
+ * The chain-link fence behind the goal — every sports centre has one.
+ * It stands at the back of the net, runs wide beyond the posts and about
+ * TWO GOALS high. Balls bounce off it and the rally stays alive; put one
+ * OVER it (or wide past its edge) and YOU'RE in goal.
+ */
+export const FENCE = {
+  /** Arena-local z of the fence plane (just behind the net cage). */
+  z: -1.35,
+  halfWidth: 3.6, // 7.2 m wide — well beyond the 3 m goal
+  height: 4.0, // ~two goals high
+  restitution: 0.72,
+  /** Post spacing for the visual frame. */
+  postGap: 1.8,
+};
+
+/**
  * THE BALL. Starts beach-ball big and stone cold; every rally pass shrinks it
  * a step and stokes it hotter — deep in a combo it is a small roaring
  * fireball (fx/fire.ts, proudly harvested from Iron Balls).
@@ -165,6 +181,16 @@ export const HANDS = {
   spinGain: 9.0,
   /** Seconds before the same hand can strike the ball again. */
   rehitCooldown: 0.18,
+  /**
+   * JUGGLE ASSIST. A gentle, mostly-UPWARD slap is you keeping it up for
+   * yourself — so the more vertical the swing (and the softer it is), the
+   * harder we damp the sideways drift and spin that would carry it off to
+   * a team-mate. Power slaps are exempt: a smashed ball goes where physics
+   * says. 0 = off, 1 = a straight-up slap goes dead straight up.
+   */
+  juggleAssist: 0.7,
+  /** Swing verticality (|vy|/speed) where the assist starts blending in. */
+  juggleFrom: 0.55,
 
   // The FLOP. Position/rotation follow the grip through a spring — thick
   // rubber, not rigid plastic. Higher stiffness = tighter follow.

@@ -8,7 +8,7 @@ synth SFX kit and the ECS architecture all live on here).
 It's the British playground classic: **one keeper, five attackers** stood on
 pedestals arced around a five-a-side goal like a basketball three-point line
 — except everyone's wearing **enormous floppy rubber sports hands**, and the
-ball starts the size of a beach ball. The title sign above the goal spells
+ball starts the size of a beach ball (a proper black-and-white football, just huge). The title sign above the goal spells
 **TWOT** with a football for the O. That sign is also the scoreboard of doom.
 
 ## The rules
@@ -22,7 +22,13 @@ ball starts the size of a beach ball. The title sign above the goal spells
   slaps it **the instant it lands** — a **HALF VOLLEY** — which counts, pays
   bonus combo, and feels incredible.
 - **Shooting.** Big slap = **power shot**. Swipe across the ball = spin, and
-  spin **curves** (Magnus lift is simulated for real).
+  spin **curves** (Magnus lift is simulated for real). Score before the ball
+  is live and **you go in goal**.
+- **The fence.** A chain-link fence stands behind the goal, wide and two
+  goals high. Bounce the ball off it — the rally stays alive. Put it **over**
+  (or wide of it) and **you go in goal**.
+- **Self keep-ups.** A soft, mostly-upward slap stays over YOUR head
+  (juggle assist damps the sideways drift); smash it and physics takes over.
 - **The rotation.** Keeper saves your shot? **You take the gloves.** The old
   keeper teleports to a far platform and everyone between shuffles one
   pedestal toward the centre.
@@ -68,7 +74,8 @@ npm install
 npm run dev        # desktop: IWSDK's built-in WebXR emulator (WASD + mouse)
 ```
 
-In-game, **hold both grips ~1 second** to return to the lobby.
+In-game, press **A** (or X) to summon the pause panel — resume, or leave
+to the lobby.
 
 ```bash
 npm run build      # typecheck + production build to dist/

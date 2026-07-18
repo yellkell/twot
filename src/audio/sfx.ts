@@ -264,6 +264,22 @@ export function serveReady(): void {
   tone({ freq: 523, type: 'triangle', dur: 0.12, gain: 0.12, delay: 0.09 });
 }
 
+/** The ball rattling off the chain-link fence — jangling steel diamonds. */
+export function chainRattle(): void {
+  clank(1500, 0.14, 0.18);
+  clank(1130, 0.1, 0.22, 0.03);
+  clank(1720, 0.06, 0.12, 0.06);
+  whooshNoise(0.12, 0.1, 900, 2600);
+  tone({ freq: 240, to: 120, type: 'sine', dur: 0.1, gain: 0.12 });
+}
+
+/** Over the fence (or a not-live goal) — whistle, groan, sad trombone-ish slide. */
+export function overFence(): void {
+  whistle(0.4, 0.14);
+  crowd(1.0, 0.12, 250, 1100, 0.15);
+  tone({ freq: 392, to: 196, type: 'sawtooth', dur: 0.5, gain: 0.08, delay: 0.3 });
+}
+
 /** A TWOT letter lighting up — a stadium-organ stab, one step per letter. */
 export function twotLetter(n: number): void {
   const base = [196, 233, 262, 311][Math.max(0, Math.min(3, n - 1))];

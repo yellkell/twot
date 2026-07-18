@@ -14,7 +14,7 @@
  *  - Hold both grips ~1.2 s to walk back to the lobby.
  */
 
-import { createSystem, InputComponent, Vector3 } from '@iwsdk/core';
+import { createSystem, Vector3 } from '@iwsdk/core';
 import { app, type AppState } from '../menu/appState.js';
 import { BALL, LOST_BALL_TIMEOUT, PUNISH, RALLY } from '../config.js';
 import {
@@ -52,7 +52,6 @@ function shortestAngle(from: number, to: number): number {
 
 export class GameFlowSystem extends createSystem({}) {
   private lastState: AppState | null = null;
-  private squeezeHold = 0;
   private glideFrom: AnchorTarget | null = null;
   private glideTo: AnchorTarget | null = null;
 
@@ -74,11 +73,9 @@ export class GameFlowSystem extends createSystem({}) {
     rally.keeperClock += delta;
     playerById(keeperId()).stats.keeperSeconds += delta;
 
-    this.checkLobbyHold(delta);
-
     switch (rally.phase) {
       case 'rally':
-        if (rally.pendingSave) {
+        if (rally.pendingSwap) {
           this.beginRotation();
         } else if (ball.bouncedAt >= 0 && rally.time - ball.bouncedAt > BALL.halfVolleyWindow) {
           this.deadBall('bounce');
@@ -128,22 +125,6 @@ export class GameFlowSystem extends createSystem({}) {
     rally.phase = 'idle';
     rally.message = '';
     persist();
-  }
-
-  /** Hold both grips to concede the session and go back to the lobby. */
-  private checkLobbyHold(delta: number): void {
-    const left = this.input.xr.gamepads.left?.getButtonPressed(InputComponent.Squeeze) ?? false;
-    const right = this.input.xr.gamepads.right?.getButtonPressed(InputComponent.Squeeze) ?? false;
-    if (left && right) {
-      this.squeezeHold += delta;
-      if (this.squeezeHold >= 1.2) {
-        this.squeezeHold = 0;
-        sfx.uiClick();
-        app.state = 'menu';
-      }
-    } else {
-      this.squeezeHold = 0;
-    }
   }
 
   // --- dead balls + serves ---------------------------------------------------
@@ -302,8 +283,8 @@ export class GameFlowSystem extends createSystem({}) {
   // --- the rotation ceremony ---------------------------------------------------
 
   private beginRotation(): void {
-    const save = rally.pendingSave!;
-    rally.pendingSave = null;
+    const swap = rally.pendingSwap!;
+    rally.pendingSwap = null;
     rally.phase = 'rotate';
     rally.rotateTimer = RALLY.rotateTime;
     rally.combo = 0;
@@ -315,7 +296,7 @@ export class GameFlowSystem extends createSystem({}) {
       yaw: arenaRefs.root.rotation.y,
     };
 
-    const { newKeeper, oldKeeper } = applySaveRotation(save.shooter);
+    const { newKeeper, oldKeeper } = applySaveRotation(swap.newKeeper);
     rally.lineupVersion += 1;
     playerById(newKeeper).stats.keeperStints += 1;
     rally.keeperClock = 0;
@@ -327,7 +308,12 @@ export class GameFlowSystem extends createSystem({}) {
     sfx.rotateCue();
     const nk = playerById(newKeeper);
     const ok = playerById(oldKeeper);
-    setMessage(`${nk.name} TAKES THE GLOVES — ${ok.name} heads out wide`, '#29b6f6', RALLY.rotateTime + 0.6);
+    const line = {
+      save: `${nk.name} TAKES THE GLOVES — ${ok.name} heads out wide`,
+      over: `OVER THE FENCE — ${nk.name} goes in goal!`,
+      notlive: `TOO KEEN — ${nk.name} takes the gloves`,
+    }[swap.reason];
+    setMessage(line, '#29b6f6', RALLY.rotateTime + 0.6);
 
     // A little teleport sparkle on every pedestal that changes hands.
     for (let i = 0; i < lineup.arc.length; i++) {
