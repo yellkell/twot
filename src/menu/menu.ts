@@ -24,7 +24,7 @@ import { AERO, aeroFont, glassPanel, headline, pillButton, swoosh } from '../ui/
 
 export type PanelId = 'play' | 'stats' | 'howto' | 'pause';
 
-export type MenuAction = 'play' | 'toggle-difficulty' | 'reset-stats' | 'resume' | 'leave';
+export type MenuAction = 'play' | 'toggle-difficulty' | 'toggle-view' | 'reset-stats' | 'resume' | 'leave';
 
 const PW = 512;
 const PH = 400;
@@ -82,33 +82,44 @@ function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
   drawFootball(ctx, PW / 2 + 46, 64, 38, 1);
   headline(ctx, 'T', PW / 2 + 138, 66, 84, AERO.aqua);
 
-  pillButton(ctx, 86, 130, PW - 172, 92, 'PLAY', AERO.lime, hover);
+  pillButton(ctx, 86, 118, PW - 172, 80, 'PLAY', AERO.lime, hover);
 
   pillButton(
     ctx,
     116,
-    248,
+    212,
     PW - 232,
-    56,
+    50,
     `BOTS: ${app.difficulty === 'pro' ? 'PRO' : 'CASUAL'}`,
     app.difficulty === 'pro' ? AERO.sun : AERO.aqua,
     hover,
   );
+  pillButton(
+    ctx,
+    116,
+    274,
+    PW - 232,
+    50,
+    app.view === 'pavilion' ? 'VIEW: PAVILION' : 'VIEW: PASSTHROUGH',
+    app.view === 'pavilion' ? AERO.violet : AERO.aqua,
+    hover,
+  );
 
-  ctx.font = aeroFont(22, 700);
+  ctx.font = aeroFont(21, 700);
   ctx.fillStyle = AERO.text;
-  ctx.fillText('press A in-game to pause or leave', PW / 2, 340);
+  ctx.fillText('press A in-game to pause or leave', PW / 2, 346);
   if (rally.score > 0 || rally.bestCombo > 0) {
     ctx.fillStyle = AERO.aquaDeep;
-    ctx.fillText(`last session — score ${rally.score} · best combo ×${rally.bestCombo}`, PW / 2, 372);
+    ctx.fillText(`last session — score ${rally.score} · best combo ×${rally.bestCombo}`, PW / 2, 376);
   }
 }
 
 function hitPlay(u: number, v: number): MenuAction | null {
   const x = u * PW;
   const y = (1 - v) * PH;
-  if (x >= 86 && x <= PW - 86 && y >= 130 && y <= 222) return 'play';
-  if (x >= 116 && x <= PW - 116 && y >= 248 && y <= 304) return 'toggle-difficulty';
+  if (x >= 86 && x <= PW - 86 && y >= 118 && y <= 198) return 'play';
+  if (x >= 116 && x <= PW - 116 && y >= 212 && y <= 262) return 'toggle-difficulty';
+  if (x >= 116 && x <= PW - 116 && y >= 274 && y <= 324) return 'toggle-view';
   return null;
 }
 
@@ -195,19 +206,30 @@ function drawHowto(ctx: CanvasRenderingContext2D, hover: boolean): void {
  */
 function drawPause(ctx: CanvasRenderingContext2D, hover: boolean): void {
   glassPanel(ctx, 8, 8, PW - 16, PH - 16, { radius: 34, bubbles: 4, stroke: hover ? AERO.lime : AERO.stroke });
-  headline(ctx, 'PAUSED', PW / 2, 70, 58, AERO.aqua);
-  pillButton(ctx, 96, 130, PW - 192, 84, 'RESUME', AERO.lime, hover);
-  pillButton(ctx, 96, 240, PW - 192, 84, 'LEAVE — LOBBY', AERO.bubblegum, hover);
-  ctx.font = aeroFont(20, 700);
+  headline(ctx, 'PAUSED', PW / 2, 60, 52, AERO.aqua);
+  pillButton(ctx, 96, 104, PW - 192, 70, 'RESUME', AERO.lime, hover);
+  pillButton(
+    ctx,
+    96,
+    190,
+    PW - 192,
+    70,
+    app.view === 'pavilion' ? 'VIEW: PAVILION' : 'VIEW: PASSTHROUGH',
+    app.view === 'pavilion' ? AERO.violet : AERO.aqua,
+    hover,
+  );
+  pillButton(ctx, 96, 276, PW - 192, 70, 'LEAVE — LOBBY', AERO.bubblegum, hover);
+  ctx.font = aeroFont(19, 700);
   ctx.fillStyle = AERO.textDim;
-  ctx.fillText('press A to dismiss', PW / 2, 356);
+  ctx.fillText('press A to dismiss', PW / 2, 372);
 }
 
 function hitPause(u: number, v: number): MenuAction | null {
   const x = u * PW;
   const y = (1 - v) * PH;
-  if (x >= 96 && x <= PW - 96 && y >= 130 && y <= 214) return 'resume';
-  if (x >= 96 && x <= PW - 96 && y >= 240 && y <= 324) return 'leave';
+  if (x >= 96 && x <= PW - 96 && y >= 104 && y <= 174) return 'resume';
+  if (x >= 96 && x <= PW - 96 && y >= 190 && y <= 260) return 'toggle-view';
+  if (x >= 96 && x <= PW - 96 && y >= 276 && y <= 346) return 'leave';
   return null;
 }
 
