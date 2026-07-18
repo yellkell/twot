@@ -109,12 +109,12 @@ export const GOAL = {
 export const FENCE = {
   /** Arena-local z of the fence plane (just behind the net cage). */
   z: -1.35,
-  /** 11 m wide — the far arc stations sit at ±3.6, platforms end ~±4.5. */
-  halfWidth: 5.5,
-  height: 8.0, // four goals high
+  /** 16 m wide — sails far past the platform arc (~±4.5) on both sides. */
+  halfWidth: 8.0,
+  height: 6.0, // three goals high
   restitution: 0.72,
   /** Post spacing for the visual frame. */
-  postGap: 1.85,
+  postGap: 2.0,
 };
 
 /**
