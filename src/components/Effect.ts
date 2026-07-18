@@ -9,6 +9,7 @@ export const EffectKind = {
   Flash: 0, // grow + fade (impact pop)
   Shard: 1, // ballistic ember chunk: move + gravity + shrink + fade
   Ring: 2, // expanding additive shockwave ring
+  Rise: 3, // floats upward + fades (combo numbers, headline stingers)
 } as const;
 
 export const Effect = createComponent(

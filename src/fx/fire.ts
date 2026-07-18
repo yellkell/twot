@@ -24,7 +24,7 @@ import {
   Vector3,
   type Scene,
 } from 'three';
-import { FIREBALL } from '../config.js';
+import { BALL } from '../config.js';
 
 /** 3D simplex noise (Ken Perlin's optimised variant) + 5-octave fbm. */
 const NOISE_GLSL = /* glsl */ `
@@ -61,7 +61,7 @@ const CORE_FRAG = /* glsl */ `
   varying vec3 vPos;
   ${NOISE_GLSL}
   void main(){
-    vec3 q = vPos * 5.0 / ${FIREBALL.radius.toFixed(3)} * 0.1;
+    vec3 q = vPos * 5.0 / ${BALL.baseRadius.toFixed(3)} * 0.1;
     q.y -= uTime * 1.6;                 // flames lick upward
     float heat = clamp((fbm(q) * 0.5 + 0.65) * uHeat, 0.0, 1.7);
     // Orange ramp: glowing floor → white-hot peaks.
@@ -125,8 +125,8 @@ export interface FireVisual {
   dispose(): void;
 }
 
-const CORE_GEO = new IcosahedronGeometry(FIREBALL.radius, 3);
-const CORONA_GEO = new PlaneGeometry(FIREBALL.radius * 6, FIREBALL.radius * 6);
+const CORE_GEO = new IcosahedronGeometry(BALL.baseRadius, 3);
+const CORONA_GEO = new PlaneGeometry(BALL.baseRadius * 6, BALL.baseRadius * 6);
 
 /** Build a fireball: molten core + billboarded corona. team 1 burns blue. */
 export function createFireVisual(team: 0 | 1): FireVisual {

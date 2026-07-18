@@ -1,168 +1,214 @@
 /**
- * Builds the static arena for FIRE FIGHT, styled like a 90s UK robot-wars
- * pit: gunmetal pedestal slabs with hazard-amber kick-bands, bolted corner
- * studs and a thin team-colour rim glow. The environment is intentionally
- * just the two platforms floating in your passthrough room:
- *  - a slab pedestal beneath YOU (ember rim) — underfoot, Blaston-style,
- *  - a matching pedestal across the gap for the opponent (blue rim),
- *  - the FIRE FIGHT title plate hung high behind the opponent (lobby only),
- *  - warm key lighting so the steel and fire read with some form.
+ * Builds the sports centre. Everything lives under one `arena-root` group in
+ * ARENA-LOCAL coordinates — goal-line at the origin, mouth opening toward
+ * +z, five attacker pedestals on the three-point arc — and the whole root is
+ * re-anchored so that the HUMAN's current station lands exactly at the world
+ * origin (your real floor IS your platform, Iron Balls style). When the
+ * rotation law moves you into goal or out to a far platform, we move the
+ * sports centre around you instead.
  *
- * The guardian-style rim barrier is built and driven by BoundarySystem.
- * These are plain Three.js objects parented under `world.scene` — static
- * set-dressing. Dynamic, interactive objects become ECS entities.
+ * The pedestals are the harvested Iron Balls octagon slabs, re-skinned
+ * frutiger-aero: gloss white over an under-glow, an accent rim ring naming
+ * each occupant.
  */
 
 import {
   BufferGeometry,
-  Color,
-  CylinderGeometry,
   Group,
   HemisphereLight,
   Line,
   LineBasicMaterial,
   Mesh,
-  MeshBasicMaterial,
   MeshStandardMaterial,
-  PlaneGeometry,
   PointLight,
   Vector3,
   type Object3D,
 } from 'three';
 import type { World } from '@iwsdk/core';
-import { ARENA_GAP, OCTAGON_VERTICES, PALETTE, PLATFORM } from '../config.js';
-import { app } from '../menu/appState.js';
-import { hazardTexture } from '../materials/hazard.js';
+import { COURT, OCTAGON_VERTICES, PALETTE, PLATFORM } from '../config.js';
+import { human, lineup, playerById, stationOf, stationPose, type StationPose } from '../game/roster.js';
 import { octagonSlab } from './octagon.js';
+import { buildGoal } from './goal.js';
 import { createTitleBanner } from './banner.js';
 
+interface StationRig {
+  group: Group;
+  rim: LineBasicMaterial;
+  slab: MeshStandardMaterial;
+}
+
+export const arenaRefs: {
+  root: Group;
+  goal: Group;
+  /** Arc pedestals, index 0..attackers-1 (left → right facing the goal). */
+  stations: StationRig[];
+  keeperStation: StationRig;
+} = {
+  root: new Group(),
+  goal: new Group(),
+  stations: [],
+  keeperStation: undefined as unknown as StationRig,
+};
+
 /** A glowing outline of the platform rim, just above the floor line. */
-function makeRimRing(color: number): Line {
+function makeRimRing(): { line: Line; mat: LineBasicMaterial } {
   const pts = OCTAGON_VERTICES.map(([x, z]) => new Vector3(x, PLATFORM.rimLift, z));
-  pts.push(pts[0].clone()); // close the loop
+  pts.push(pts[0].clone());
   const geo = new BufferGeometry().setFromPoints(pts);
-  const ring = new Line(geo, new LineBasicMaterial({ color: new Color(color), transparent: true, opacity: 0.95 }));
-  ring.name = 'rim-ring';
-  return ring;
-}
-
-/** Flat hazard-striped warning band laid along each rim edge. */
-function makeHazardBand(color?: string): Group {
-  const band = new Group();
-  band.name = 'hazard-band';
-  const tex = hazardTexture(color);
-  const width = 0.1;
-  const n = OCTAGON_VERTICES.length;
-  for (let i = 0; i < n; i++) {
-    const [ax, az] = OCTAGON_VERTICES[i];
-    const [bx, bz] = OCTAGON_VERTICES[(i + 1) % n];
-    const dx = bx - ax;
-    const dz = bz - az;
-    const len = Math.hypot(dx, dz);
-    // Inward normal: shift the band just inside the rim line.
-    let nx = -dz / len;
-    let nz = dx / len;
-    const midx = (ax + bx) / 2;
-    const midz = (az + bz) / 2;
-    if (nx * midx + nz * midz > 0) {
-      nx = -nx;
-      nz = -nz;
-    }
-    const geo = new PlaneGeometry(len, width);
-    geo.rotateX(-Math.PI / 2); // lie flat in XZ, +X along the edge
-    const mat = new MeshBasicMaterial({ map: tex.clone(), transparent: true, opacity: 0.85 });
-    mat.map!.repeat.set(Math.max(1, Math.round(len * 6)), 1);
-    const strip = new Mesh(geo, mat);
-    strip.position.set(midx + nx * (width / 2 + 0.01), PLATFORM.rimLift, midz + nz * (width / 2 + 0.01));
-    strip.rotation.y = -Math.atan2(dz, dx);
-    band.add(strip);
-  }
-  return band;
-}
-
-/** Bolted corner studs at each rim vertex — armour the silhouette. */
-function makeCornerBolts(): Group {
-  const bolts = new Group();
-  bolts.name = 'corner-bolts';
-  const geo = new CylinderGeometry(0.028, 0.035, 0.035, 8);
-  const mat = new MeshStandardMaterial({
-    color: PALETTE.gunmetal,
-    metalness: 0.95,
-    roughness: 0.3,
-  });
-  for (const [x, z] of OCTAGON_VERTICES) {
-    const bolt = new Mesh(geo, mat);
-    bolt.position.set(x * 0.97, 0.018, z * 0.97);
-    bolts.add(bolt);
-  }
-  return bolts;
+  const mat = new LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
+  const line = new Line(geo, mat);
+  line.name = 'rim-ring';
+  return { line, mat };
 }
 
 /**
- * One boxer's pedestal: a gunmetal slab sunk so its top face sits at floor
- * level (your real floor IS the platform top), hazard banding and corner
- * bolts around the rim, and a thin team-colour glow line marking the edge.
- * `opts` re-skins it — the CHAMPION variant earned by felling GOLIATH wears
- * gold banding and burns brighter.
+ * One pedestal: a gloss-white slab sunk so its top face sits at floor level,
+ * a coloured under-glow, and an accent rim ring naming its occupant.
  */
-function makePlatform(color: number, opts: { hazard?: string; glow?: number } = {}): Group {
+function makeStation(accent: number): StationRig {
   const group = new Group();
 
-  const slab = new Mesh(
-    octagonSlab(OCTAGON_VERTICES, PLATFORM.thickness),
-    new MeshStandardMaterial({
-      color: PALETTE.gunmetalDark,
-      emissive: color,
-      emissiveIntensity: opts.glow ?? 0.22,
-      metalness: 0.88,
-      roughness: 0.38,
-    }),
-  );
-  // Top face at y=0 (the real floor), body glowing faintly below.
-  slab.position.y = -PLATFORM.thickness;
+  const slabMat = new MeshStandardMaterial({
+    color: PALETTE.white,
+    emissive: accent,
+    emissiveIntensity: 0.25,
+    metalness: 0.4,
+    roughness: 0.16,
+  });
+  const slab = new Mesh(octagonSlab(OCTAGON_VERTICES, PLATFORM.thickness), slabMat);
+  slab.position.y = -PLATFORM.thickness; // top face at the real floor
   group.add(slab);
 
-  group.add(makeHazardBand(opts.hazard));
-  group.add(makeCornerBolts());
-  group.add(makeRimRing(color));
-  return group;
+  const rim = makeRimRing();
+  rim.mat.color.set(accent);
+  group.add(rim.line);
+
+  return { group, rim: rim.mat, slab: slabMat };
+}
+
+/** The painted three-point line sweeping through the five stations. */
+function makeCourtLine(): Line {
+  const pts: Vector3[] = [];
+  const over = 0.18; // sweep a little past the end stations
+  const from = -COURT.arcHalfSpread - over;
+  const to = COURT.arcHalfSpread + over;
+  for (let i = 0; i <= 48; i++) {
+    const a = from + ((to - from) * i) / 48;
+    pts.push(new Vector3(Math.sin(a) * COURT.arcRadius, 0.008, Math.cos(a) * COURT.arcRadius));
+  }
+  const line = new Line(
+    new BufferGeometry().setFromPoints(pts),
+    new LineBasicMaterial({ color: PALETTE.aqua, transparent: true, opacity: 0.8 }),
+  );
+  line.name = 'three-point-line';
+  return line;
 }
 
 export function buildArena(world: World): Object3D {
-  const scene = world.scene;
+  const root = arenaRefs.root;
+  root.name = 'arena-root';
 
-  const arena = new Group();
-  arena.name = 'arena';
+  const goal = buildGoal();
+  arenaRefs.goal = goal.group;
+  root.add(goal.group);
 
-  // Your pedestal: ember rim, underfoot.
-  const mine = makePlatform(PALETTE.ember);
-  mine.name = 'player-platform';
-  arena.add(mine);
+  root.add(makeCourtLine());
 
-  // The CHAMPION pedestal — the loadout reward for felling GOLIATH. Built
-  // alongside and visibility-swapped with the standard one (MenuSystem
-  // syncs it to the equipped skin).
-  const champion = makePlatform(0xffd700, { hazard: '#ffd700', glow: 0.5 });
-  champion.name = 'player-platform-champion';
-  champion.visible = app.stats.platformSkin === 'champion' && app.stats.championPlatform;
-  mine.visible = !champion.visible;
-  arena.add(champion);
+  // Attacker pedestals along the arc, keeper pedestal in the mouth.
+  arenaRefs.stations = [];
+  for (let i = 0; i < COURT.attackers; i++) {
+    const rig = makeStation(PALETTE.aqua);
+    const pose = stationPose(i);
+    rig.group.position.set(pose.x, 0, pose.z);
+    rig.group.rotation.y = Math.atan2(pose.fx, pose.fz); // face the goal
+    rig.group.name = `station-${i}`;
+    root.add(rig.group);
+    arenaRefs.stations.push(rig);
+  }
+  const keeper = makeStation(PALETTE.lime);
+  const kp = stationPose('keeper');
+  keeper.group.position.set(kp.x, 0, kp.z);
+  keeper.group.name = 'station-keeper';
+  root.add(keeper.group);
+  arenaRefs.keeperStation = keeper;
 
-  // The opponent's pedestal across the gap — same shape, blue rim.
-  const theirs = makePlatform(PALETTE.coolFlame);
-  theirs.position.set(0, 0, -ARENA_GAP);
-  theirs.name = 'opponent-platform';
-  arena.add(theirs);
+  createTitleBanner(root);
 
-  // "FIRE FIGHT" signage hung high behind the opponent.
-  createTitleBanner(scene);
+  // --- Lighting: bright, clean sports-centre daylight ---
+  root.add(new HemisphereLight(0xdff3ff, 0xbfe6c8, 1.25));
+  const key = new PointLight(PALETTE.glassWhite, 6, 16);
+  key.position.set(0, 4.2, COURT.arcRadius * 0.5);
+  root.add(key);
+  const goalGlow = new PointLight(PALETTE.aqua, 2.5, 8);
+  goalGlow.position.set(0, 2.4, -0.4);
+  root.add(goalGlow);
 
-  // --- Lighting: warm-vs-cool so both fires and the steel read nicely ---
-  arena.add(new HemisphereLight(0xcfd8e8, 0xffd9b0, 1.2));
-  const key = new PointLight(PALETTE.flame, 7, 14);
-  key.position.set(0, 3, -ARENA_GAP / 2);
-  arena.add(key);
+  world.scene.add(root);
+  syncStations();
+  anchorToHuman();
+  return root;
+}
 
-  scene.add(arena);
-  return arena;
+/** Repaint every pedestal for its current occupant (call on lineup change). */
+export function syncStations(): void {
+  for (let i = 0; i < arenaRefs.stations.length; i++) {
+    const rig = arenaRefs.stations[i];
+    const occupant = playerById(lineup.arc[i]);
+    rig.rim.color.set(occupant.accent);
+    rig.slab.emissive.set(occupant.accent);
+    rig.group.scale.setScalar(occupant.isHuman ? 1 : PLATFORM.botScale);
+  }
+  const keeper = playerById(lineup.keeper);
+  arenaRefs.keeperStation.rim.color.set(keeper.accent);
+  arenaRefs.keeperStation.slab.emissive.set(keeper.accent);
+  arenaRefs.keeperStation.group.scale.setScalar(keeper.isHuman ? 1 : PLATFORM.botScale);
+}
+
+export interface AnchorTarget {
+  x: number;
+  z: number;
+  yaw: number;
+}
+
+/**
+ * Where arena-root must sit so an arbitrary arena-local pose lands at the
+ * world origin with its facing direction pointing down world -z.
+ */
+export function anchorTargetFor(pose: StationPose): AnchorTarget {
+  // Yaw that turns the pose's arena-local facing onto world -z.
+  const yaw = Math.atan2(pose.fx, -pose.fz);
+  // Rotate the pose position by yaw, then translate it to the origin.
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  const px = pose.x * cos + pose.z * sin;
+  const pz = -pose.x * sin + pose.z * cos;
+  return { x: -px, z: -pz, yaw };
+}
+
+/** The anchor for the human's current station. */
+export function anchorTarget(): AnchorTarget {
+  return anchorTargetFor(stationPose(stationOf(human.id)));
+}
+
+/** Snap the sports centre onto the human's current station. */
+export function anchorToHuman(): void {
+  const t = anchorTarget();
+  const root = arenaRefs.root;
+  root.rotation.set(0, t.yaw, 0);
+  root.position.set(t.x, 0, t.z);
+  root.updateMatrixWorld(true);
+}
+
+const _local = new Vector3();
+
+/** Arena-local position of a world point (uses the root's live transform). */
+export function worldToArena(world: Vector3, out: Vector3): Vector3 {
+  out.copy(world);
+  return arenaRefs.root.worldToLocal(out);
+}
+
+/** World position of an arena-local point. */
+export function arenaToWorld(x: number, y: number, z: number, out: Vector3): Vector3 {
+  _local.set(x, y, z);
+  return arenaRefs.root.localToWorld(out.copy(_local));
 }

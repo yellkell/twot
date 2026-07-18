@@ -8,8 +8,19 @@ export default defineConfig({
   base: './',
   plugins: [
     iwsdkDev({
-      // Emulate a Quest 3 device profile during local development.
-      emulator: { device: 'metaQuest3' },
+      emulator: {
+        // Emulate a Quest 3 device profile.
+        device: 'metaQuest3',
+        // Bundle the emulator into `vite build` too, and activate it on any
+        // host (not just localhost) — so the deployed GitHub Pages site is
+        // playable on a plain desktop browser with WASD + mouse.
+        injectOnBuild: true,
+        activation: 'always',
+        // A REAL Quest browser (OculusBrowser UA) skips the emulator and
+        // uses native WebXR passthrough. This is the plugin default, stated
+        // here for clarity.
+        userAgentException: /OculusBrowser/,
+      },
     }),
   ],
   server: {

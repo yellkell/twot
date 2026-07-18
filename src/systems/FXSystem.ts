@@ -46,6 +46,14 @@ export class FXSystem extends createSystem({
           obj.scale.setScalar(base * (1 + t * 6));
           if (mat) mat.opacity = 0.8 * (1 - t) * (1 - t);
           break;
+        case EffectKind.Rise: {
+          const v = e.getVectorView(Effect, 'velocity');
+          obj.position.x += v[0] * delta;
+          obj.position.y += v[1] * delta;
+          obj.position.z += v[2] * delta;
+          if (mat) mat.opacity = 1 - t * t;
+          break;
+        }
         case EffectKind.Shard: {
           const v = e.getVectorView(Effect, 'velocity');
           obj.position.x += v[0] * delta;
