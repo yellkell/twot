@@ -13,7 +13,7 @@
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { Euler, type Sprite } from 'three';
 import { app } from '../menu/appState.js';
-import { HANDS, PALETTE } from '../config.js';
+import { HANDS, HEADER, PALETTE } from '../config.js';
 import { human } from '../game/roster.js';
 import { ball, landPunishSlap, rally } from '../game/state.js';
 import { strikeBall } from '../game/strike.js';
@@ -62,6 +62,8 @@ const _grip = new Vector3();
 const _gripQ = new Quaternion();
 const _targetQ = new Quaternion();
 const _vel = new Vector3();
+const _headPos = new Vector3();
+const _headVel = new Vector3();
 
 export class HandsSystem extends createSystem({}) {
   private hands: [SportsHand, SportsHand] | null = null;
@@ -104,11 +106,12 @@ export class HandsSystem extends createSystem({}) {
 
       hand.update(delta, _grip, _targetQ, _vel);
 
-      // Palm vs ball — the entire input model of this game.
+      // Hand vs ball — palm heel, mid-fingers AND fingertips all strike.
       if (rally.phase === 'serve' || rally.phase === 'rally') {
-        const reach = HANDS.contactRadius + ball.radius;
-        if (hand.palmWorld.distanceToSquared(ball.pos) <= reach * reach) {
-          const outcome = strikeBall(this.world, human.id, hand.palmWorld, _vel);
+        for (const c of hand.contacts) {
+          const reach = c.r + ball.radius;
+          if (c.pos.distanceToSquared(ball.pos) > reach * reach) continue;
+          const outcome = strikeBall(this.world, human.id, c.pos, _vel);
           if (outcome) {
             hand.impact(outcome.strength);
             pulseHand(
@@ -118,10 +121,34 @@ export class HandsSystem extends createSystem({}) {
               outcome.power ? 130 : 70,
             );
           }
+          break; // one strike attempt per hand per frame
         }
       }
 
       this.updateCeremony(hand, h);
+    }
+
+    this.updateHeader(delta);
+  }
+
+  /** HEAD it: the tracked head is a striking surface too. */
+  private headTracker = new VelocityTracker();
+
+  private updateHeader(_delta: number): void {
+    if (rally.phase !== 'serve' && rally.phase !== 'rally') return;
+    const head = this.playerHeadEntity?.object3D;
+    if (!head) return;
+    head.getWorldPosition(_headPos);
+    this.headTracker.push(_headPos, this.time);
+    const reach = HEADER.radius + ball.radius;
+    if (_headPos.distanceToSquared(ball.pos) > reach * reach) return;
+    this.headTracker.velocity(_headVel, this.time);
+    const outcome = strikeBall(this.world, human.id, _headPos, _headVel, { header: true });
+    if (outcome) {
+      sfx.header();
+      // No skull haptics available — both hands buzz so it lands somewhere.
+      pulseHand(this.world.session, 'left', 0.5, 60);
+      pulseHand(this.world.session, 'right', 0.5, 60);
     }
   }
 

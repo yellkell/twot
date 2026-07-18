@@ -45,6 +45,12 @@ export interface SportsHand {
   group: Group;
   /** World-space palm contact centre — refreshed every update(). */
   palmWorld: Vector3;
+  /**
+   * ALL the striking surfaces, world-space, refreshed every update():
+   * palm heel, mid-fingers and fingertips — so a flick with the ends of
+   * the fingers connects just like a full palm slap.
+   */
+  contacts: Array<{ pos: Vector3; r: number }>;
   /** Spring-follow toward the target pose; drives all the flop. */
   update(dt: number, targetPos: Vector3, targetQuat: Quaternion, handVel: Vector3): void;
   /** Punch the squash — call when this hand slaps the ball. */
@@ -132,6 +138,12 @@ export function buildSportsHand(accent: number, isLeft: boolean, scale = HANDS.s
   const pos = new Vector3();
   const vel = new Vector3();
   const palmWorld = new Vector3();
+  const k = scale / HANDS.scale; // bots' smaller hands, smaller reach
+  const contacts = [
+    { pos: palmWorld, r: HANDS.contactRadius * k, local: new Vector3(0, -0.02, -0.015) },
+    { pos: new Vector3(), r: HANDS.contactRadius * 0.8 * k, local: new Vector3(0, -0.005, -0.075) },
+    { pos: new Vector3(), r: HANDS.contactRadius * 0.62 * k, local: new Vector3(0, 0.01, -0.115) },
+  ];
   let squash = 0;
   let fingerBend = 0;
   let fingerSway = 0;
@@ -140,6 +152,7 @@ export function buildSportsHand(accent: number, isLeft: boolean, scale = HANDS.s
   const api: SportsHand = {
     group,
     palmWorld,
+    contacts,
 
     update(dt, targetPos, targetQuat, handVel) {
       if (!started) {
@@ -182,8 +195,14 @@ export function buildSportsHand(accent: number, isLeft: boolean, scale = HANDS.s
       const s = 1 - squash * (1 - HANDS.squash);
       group.scale.set(scale * (2 - s), scale * s, scale * (2 - s) * 0.5 + scale * 0.5);
 
-      // Palm contact centre in world space.
-      palmWorld.set(0, -0.02 * scale, -0.015 * scale).applyQuaternion(group.quaternion).add(pos);
+      // Contact centres (palm heel → fingertips) in world space.
+      for (const c of contacts) {
+        c.pos
+          .copy(c.local)
+          .multiplyScalar(scale)
+          .applyQuaternion(group.quaternion)
+          .add(pos);
+      }
     },
 
     impact(strength) {

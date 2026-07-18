@@ -207,6 +207,18 @@ export const HANDS = {
   squashRecover: 9,
 };
 
+/** HEADERS — nod it to keep it up, or bury it. */
+export const HEADER = {
+  /** Contact sphere around the tracked head. */
+  radius: 0.17,
+  /** The ball must arrive at your head at least this fast (m/s). */
+  minApproach: 0.9,
+  /** Free upward pop added to every header (keep-ups feel generous). */
+  popUp: 1.1,
+  /** Head speed above which the header counts as a POWER shot. */
+  powerSpeed: 1.6,
+};
+
 /** Rally / combo law. */
 export const RALLY = {
   /** Distinct players who must touch the serve before the ball is LIVE. */

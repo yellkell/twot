@@ -47,6 +47,12 @@ World.create(container, {
     camera: { position: [0, 1.6, 0] },
   },
 }).then((world) => {
+  // See far: the pavilion's sky dome (380 m) and mountains (235 m) must
+  // never clip in and out as you pitch your head — that reads as the whole
+  // horizon lurching. Three propagates this to the XR session's depthFar.
+  world.camera.far = 800;
+  world.camera.updateProjectionMatrix();
+
   setupEnvironment(world);
   buildArena(world);
 
