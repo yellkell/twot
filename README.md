@@ -47,19 +47,32 @@ Persistent (localStorage) per player — you *and* the five bots: goals,
 shots, saves, **average time as keeper**, passes, half volleys, best combo,
 and **aura**. Check the CLUB SHEET panel in the lobby.
 
-## Running it
+## Try it online (GitHub Pages)
+
+Pushed to `main`, the [`Deploy to GitHub Pages`](.github/workflows/deploy.yml)
+workflow builds and publishes to
+**https://yellkell.github.io/twot/** (enable it once under
+*Settings → Pages → Source → GitHub Actions*).
+
+The production build bundles the WebXR emulator, so:
+
+- **On a Quest browser** you get native passthrough AR — Enter AR and the
+  goal floats in your room.
+- **On a plain desktop browser** the emulator kicks in: Enter XR, then fly
+  the hands with WASD + mouse (drag the controller widgets to swing).
+
+## Running it locally
 
 ```bash
 npm install
 npm run dev        # desktop: IWSDK's built-in WebXR emulator (WASD + mouse)
 ```
 
-Open it on a Quest browser for passthrough AR; the goal and pedestals float
-in your real room. In-game, **hold both grips ~1 second** to return to the
-lobby.
+In-game, **hold both grips ~1 second** to return to the lobby.
 
 ```bash
 npm run build      # typecheck + production build to dist/
+npm run preview    # serve the built dist/ exactly as Pages will
 ```
 
 ## The tech
