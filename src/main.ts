@@ -22,6 +22,7 @@ import { GoalSystem } from './systems/GoalSystem.js';
 import { MenuSystem } from './systems/MenuSystem.js';
 import { HudSystem } from './systems/HudSystem.js';
 import { FXSystem } from './systems/FXSystem.js';
+import { PavilionSystem } from './systems/PavilionSystem.js';
 
 const container = document.getElementById('scene-container') as HTMLDivElement;
 
@@ -61,6 +62,8 @@ World.create(container, {
   world.registerSystem(MenuSystem);
   world.registerSystem(HudSystem);
   world.registerSystem(FXSystem);
+  // The lakeside pavilion backdrop (toggled against passthrough).
+  world.registerSystem(PavilionSystem);
 
   // eslint-disable-next-line no-console
   console.info('[TWOT] World ready — hands big, ball up.');

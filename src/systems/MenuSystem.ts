@@ -19,7 +19,7 @@ import {
   Vector3,
   type Intersection,
 } from 'three';
-import { app, saveDifficulty, type AppState } from '../menu/appState.js';
+import { app, saveDifficulty, saveView, type AppState } from '../menu/appState.js';
 import { createMenu, createPausePanel, type Menu, type MenuAction, type MenuPanel, type PanelId } from '../menu/menu.js';
 import { resetClub } from '../game/roster.js';
 import * as sfx from '../audio/sfx.js';
@@ -115,7 +115,12 @@ export class MenuSystem extends createSystem({}) {
       if (hit.uv && pads[hand]?.getButtonDown(InputComponent.Trigger)) {
         const action = this.pause.hitTest(hit.uv.x, hit.uv.y);
         if (action === 'resume') this.closePause();
-        else if (action === 'leave') {
+        else if (action === 'toggle-view') {
+          sfx.uiClick();
+          app.view = app.view === 'pavilion' ? 'passthrough' : 'pavilion';
+          saveView();
+          this.pause.redraw(true);
+        } else if (action === 'leave') {
           sfx.uiClick();
           this.closePause();
           app.state = 'menu';
@@ -144,6 +149,11 @@ export class MenuSystem extends createSystem({}) {
       case 'toggle-difficulty':
         app.difficulty = app.difficulty === 'pro' ? 'casual' : 'pro';
         saveDifficulty();
+        break;
+      case 'toggle-view':
+        // PavilionSystem watches app.view and swaps the world over.
+        app.view = app.view === 'pavilion' ? 'passthrough' : 'pavilion';
+        saveView();
         break;
       case 'reset-stats':
         resetClub();
