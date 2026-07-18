@@ -2,7 +2,8 @@
  * Drives the lobby: draws controller laser pointers, raycasts the menu
  * panels for hover/click, and runs the actions (play, difficulty, reset).
  * During a kickabout the menu hides and the pointers disappear — your hands
- * are for slapping.
+ * are for slapping — EXCEPT when you press A (or X): that summons the pause
+ * panel (resume / leave), and the pointers come back to click it.
  */
 
 import { createSystem, InputComponent } from '@iwsdk/core';
@@ -19,7 +20,7 @@ import {
   type Intersection,
 } from 'three';
 import { app, saveDifficulty, type AppState } from '../menu/appState.js';
-import { createMenu, type Menu, type MenuAction, type PanelId } from '../menu/menu.js';
+import { createMenu, createPausePanel, type Menu, type MenuAction, type MenuPanel, type PanelId } from '../menu/menu.js';
 import { resetClub } from '../game/roster.js';
 import * as sfx from '../audio/sfx.js';
 
@@ -40,8 +41,14 @@ export class MenuSystem extends createSystem({}) {
   private pointers: Record<'left' | 'right', Pointer> = {} as Record<'left' | 'right', Pointer>;
   private redrawTimer = 0;
 
+  private pause!: MenuPanel;
+  private pauseOpen = false;
+  private pauseHover = false;
+
   init(): void {
     this.menu = createMenu(this.scene);
+    this.pause = createPausePanel();
+    this.scene.add(this.pause.mesh);
     this.pointers.left = this.makePointer();
     this.pointers.right = this.makePointer();
     this.applyState();
@@ -51,7 +58,7 @@ export class MenuSystem extends createSystem({}) {
     if (app.state !== this.lastState) this.applyState();
 
     if (app.state === 'playing') {
-      this.hidePointers();
+      this.updatePauseMenu();
       return;
     }
 
@@ -80,6 +87,51 @@ export class MenuSystem extends createSystem({}) {
       this.redrawTimer = 0.75;
       this.menu.redrawAll(this.hovered);
     }
+  }
+
+  /** In-game: A (or X) summons/dismisses the pause panel; lasers click it. */
+  private updatePauseMenu(): void {
+    const pads = this.input.xr.gamepads;
+    const toggled =
+      (pads.right?.getButtonDown(InputComponent.A_Button) ?? false) ||
+      (pads.left?.getButtonDown(InputComponent.X_Button) ?? false);
+    if (toggled) {
+      this.pauseOpen = !this.pauseOpen;
+      sfx.ensureAudio();
+      sfx.uiClick();
+      this.pause.mesh.visible = this.pauseOpen;
+      if (this.pauseOpen) this.pause.redraw(false);
+    }
+    if (!this.pauseOpen) {
+      this.hidePointers();
+      return;
+    }
+
+    let hover = false;
+    for (const hand of ['left', 'right'] as const) {
+      const hit = this.updatePointer(hand, [this.pause.mesh]);
+      if (!hit) continue;
+      hover = true;
+      if (hit.uv && pads[hand]?.getButtonDown(InputComponent.Trigger)) {
+        const action = this.pause.hitTest(hit.uv.x, hit.uv.y);
+        if (action === 'resume') this.closePause();
+        else if (action === 'leave') {
+          sfx.uiClick();
+          this.closePause();
+          app.state = 'menu';
+        }
+      }
+    }
+    if (hover !== this.pauseHover) {
+      this.pauseHover = hover;
+      this.pause.redraw(hover);
+    }
+  }
+
+  private closePause(): void {
+    this.pauseOpen = false;
+    this.pause.mesh.visible = false;
+    this.hidePointers();
   }
 
   private run(action: MenuAction): void {
@@ -152,6 +204,7 @@ export class MenuSystem extends createSystem({}) {
 
   private applyState(): void {
     this.menu.setVisible(app.state === 'menu');
+    this.closePause();
     if (app.state === 'menu') this.menu.redrawAll(this.hovered);
     this.lastState = app.state;
   }

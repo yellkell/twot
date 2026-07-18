@@ -84,8 +84,12 @@ export const rally = {
   goals: {} as Record<string, number>,
   /** Set while a struck ball is tracking toward the goal plane. */
   shot: null as ShotFlag | null,
-  /** A save just happened — GameFlowSystem runs the rotation ceremony. */
-  pendingSave: null as { keeper: string; shooter: string } | null,
+  /**
+   * Someone earned the gloves — GameFlowSystem runs the rotation ceremony.
+   * 'save' = their shot was stuffed; 'over' = they put it over the fence;
+   * 'notlive' = they buried it before the ball was live.
+   */
+  pendingSwap: null as { newKeeper: string; reason: 'save' | 'over' | 'notlive' } | null,
   /** Goals conceded by the CURRENT keeper — lights the T·W·O·T letters. */
   conceded: 0,
   /** The word is complete — GameFlowSystem starts the ceremony. */

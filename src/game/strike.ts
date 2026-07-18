@@ -95,6 +95,21 @@ export function strikeBall(
   if (_spin.length() > BALL.maxSpin) _spin.setLength(BALL.maxSpin);
   ball.spin.copy(_spin);
 
+  // JUGGLE ASSIST: a soft, mostly-upward slap is a self keep-up — damp the
+  // sideways carry (and the spin that would Magnus it away) so the ball
+  // stays over YOUR head instead of drifting off to a team-mate. Power
+  // slaps are exempt: a smashed ball goes where physics says.
+  if (!power && !opts.forcedVel) {
+    const upness = Math.abs(handVel.y) / Math.max(1e-4, handSpeed);
+    if (upness > HANDS.juggleFrom && ball.vel.y > 0) {
+      const t = Math.min(1, (upness - HANDS.juggleFrom) / (1 - HANDS.juggleFrom));
+      const keep = 1 - HANDS.juggleAssist * t;
+      ball.vel.x *= keep;
+      ball.vel.z *= keep;
+      ball.spin.multiplyScalar(keep);
+    }
+  }
+
   // Bots impose their solved trajectory over the raw reflection.
   if (opts.forcedVel) ball.vel.copy(opts.forcedVel);
   if (opts.forcedSpin) ball.spin.copy(opts.forcedSpin);
@@ -110,7 +125,7 @@ export function strikeBall(
   if (shot && strikerId === keeperId() && shot.shooter !== strikerId) {
     striker.stats.saves += 1;
     rally.shot = null;
-    rally.pendingSave = { keeper: strikerId, shooter: shot.shooter };
+    rally.pendingSwap = { newKeeper: shot.shooter, reason: 'save' };
     ball.lastHitBy = strikerId;
     ball.lastHitAt = rally.time;
     ball.lastTouchAt = rally.time;

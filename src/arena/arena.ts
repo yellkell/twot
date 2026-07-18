@@ -29,6 +29,7 @@ import { COURT, OCTAGON_VERTICES, PALETTE, PLATFORM } from '../config.js';
 import { human, lineup, playerById, stationOf, stationPose, type StationPose } from '../game/roster.js';
 import { octagonSlab } from './octagon.js';
 import { buildGoal } from './goal.js';
+import { buildFence } from './fence.js';
 import { createTitleBanner } from './banner.js';
 
 interface StationRig {
@@ -112,6 +113,7 @@ export function buildArena(world: World): Object3D {
   arenaRefs.goal = goal.group;
   root.add(goal.group);
 
+  root.add(buildFence());
   root.add(makeCourtLine());
 
   // Attacker pedestals along the arc, keeper pedestal in the mouth.

@@ -13,7 +13,7 @@
 
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { app } from '../menu/appState.js';
-import { GOAL, PUNISH, RALLY } from '../config.js';
+import { FENCE, GOAL, PUNISH, RALLY } from '../config.js';
 import { playerById } from '../game/roster.js';
 import { ball, gravityNow, keeperId, persist, rally, setMessage, twotLetters } from '../game/state.js';
 import { arenaRefs, arenaToWorld, worldToArena } from '../arena/arena.js';
@@ -62,9 +62,48 @@ export class GoalSystem extends createSystem({}) {
       this.flagShots();
       this.resolveCrossing();
     }
+    this.resolveFence();
 
     _prev.copy(_local);
     this.hasPrev = true;
+  }
+
+  /**
+   * The chain-link fence behind the goal. Hitting it is fine — the ball
+   * rattles off and the rally STAYS ALIVE. Putting it over the top (or
+   * wide past the edge) is not fine: whoever hit it goes in goal.
+   */
+  private resolveFence(): void {
+    if (!this.hasPrev || !(_prev.z > FENCE.z && _local.z <= FENCE.z)) return;
+
+    const cleared = _local.y >= FENCE.height || Math.abs(_local.x) >= FENCE.halfWidth;
+    if (!cleared) {
+      // Rattle and back into play.
+      _vLocal.z = Math.abs(_vLocal.z) * FENCE.restitution;
+      _vLocal.x *= 0.9;
+      ball.vel.copy(_vLocal).applyQuaternion(arenaRefs.root.quaternion);
+      arenaToWorld(_local.x, _local.y, FENCE.z + 0.03, ball.pos);
+      sfx.chainRattle();
+      spawnTouchPop(this.world, ball.pos, 0xd2dee8, 0.9);
+      return;
+    }
+
+    if (rally.phase !== 'rally') return; // dead balls may sail, nobody cares
+    const offender = ball.lastHitBy;
+    rally.shot = null;
+    sfx.overFence();
+    spawnRisingText(this.world, ball.pos, 'OVER!', '#ff5252', 1.0);
+    if (offender && offender !== keeperId()) {
+      setMessage(`${playerById(offender).name} PUT IT OVER THE FENCE!`, '#ff5252', 2.4);
+      rally.pendingSwap = { newKeeper: offender, reason: 'over' };
+    } else {
+      // The keeper hoofing it over their own fence is just a dead ball.
+      rally.combo = 0;
+      rally.phase = 'dead';
+      rally.serveTimer = RALLY.serveDelay;
+      rally.server = keeperId();
+      setMessage('OVER THE FENCE — dead ball', '#ff5252', 2.2);
+    }
   }
 
   /** Classify the latest strike: is this thing arriving at the goal? */
@@ -111,14 +150,22 @@ export class GoalSystem extends createSystem({}) {
       return;
     }
     if (inFrame && !rally.live) {
-      // Playground law: not live, doesn't count.
-      setMessage('NOT LIVE — no goal!', '#ff5252', 2.2);
-      sfx.bounceDead();
+      // Playground law: not live, doesn't count — and jumping the gun costs
+      // you the gloves.
+      const offender = ball.lastHitBy;
       rally.shot = null;
-      rally.combo = 0;
-      rally.phase = 'dead';
-      rally.serveTimer = RALLY.serveDelay;
-      rally.server = keeperId();
+      sfx.overFence();
+      spawnRisingText(this.world, ball.pos, 'NOT LIVE!', '#ff5252', 0.9);
+      if (offender && offender !== keeperId()) {
+        setMessage(`NOT LIVE, ${playerById(offender).name} — get in goal!`, '#ff5252', 2.4);
+        rally.pendingSwap = { newKeeper: offender, reason: 'notlive' };
+      } else {
+        setMessage('NOT LIVE — no goal!', '#ff5252', 2.2);
+        rally.combo = 0;
+        rally.phase = 'dead';
+        rally.serveTimer = RALLY.serveDelay;
+        rally.server = keeperId();
+      }
       return;
     }
     if (inPostBand) {

@@ -22,9 +22,9 @@ import { rally } from '../game/state.js';
 import { drawFootball } from '../arena/banner.js';
 import { AERO, aeroFont, glassPanel, headline, pillButton, swoosh } from '../ui/aero.js';
 
-export type PanelId = 'play' | 'stats' | 'howto';
+export type PanelId = 'play' | 'stats' | 'howto' | 'pause';
 
-export type MenuAction = 'play' | 'toggle-difficulty' | 'reset-stats';
+export type MenuAction = 'play' | 'toggle-difficulty' | 'reset-stats' | 'resume' | 'leave';
 
 const PW = 512;
 const PH = 400;
@@ -97,7 +97,7 @@ function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
 
   ctx.font = aeroFont(22, 700);
   ctx.fillStyle = AERO.text;
-  ctx.fillText('hold BOTH grips in-game to come back', PW / 2, 340);
+  ctx.fillText('press A in-game to pause or leave', PW / 2, 340);
   if (rally.score > 0 || rally.bestCombo > 0) {
     ctx.fillStyle = AERO.aquaDeep;
     ctx.fillText(`last session — score ${rally.score} · best combo ×${rally.bestCombo}`, PW / 2, 372);
@@ -169,23 +169,54 @@ function drawHowto(ctx: CanvasRenderingContext2D, hover: boolean): void {
     ['3 TOUCHES', 'three players in — the ball is LIVE'],
     ['COMBO', 'every pass shrinks it… then it burns'],
     ['SHOOT', 'power-slap the live ball at the goal'],
+    ['NOT LIVE?', 'score too soon and YOU go in goal'],
     ['ONE BOUNCE', 'dead — unless you hit it AS it lands'],
-    ['HALF VOLLEY', 'that counts. and it counts BIG'],
+    ['THE FENCE', 'bounce off it fine — over it, in goal'],
     ['SAVED?', 'shooter goes in goal. keeper goes wide'],
     ['T·W·O·T', 'concede 4 and face the slap line: ±AURA'],
   ];
-  let y = 102;
+  let y = 98;
   for (const [head, body] of lines) {
     ctx.textAlign = 'left';
-    ctx.font = aeroFont(20, 900);
+    ctx.font = aeroFont(19, 900);
     ctx.fillStyle = AERO.aquaDeep;
     ctx.fillText(head, 36, y);
-    ctx.font = aeroFont(18, 700);
+    ctx.font = aeroFont(17, 700);
     ctx.fillStyle = AERO.text;
-    ctx.fillText(body, 176, y);
-    y += 36;
+    ctx.fillText(body, 172, y);
+    y += 33;
   }
   ctx.textAlign = 'center';
+}
+
+/**
+ * The in-game pause panel — press A (or X) to summon/dismiss it.
+ * Two pills: back to the ball, or back to the lobby.
+ */
+function drawPause(ctx: CanvasRenderingContext2D, hover: boolean): void {
+  glassPanel(ctx, 8, 8, PW - 16, PH - 16, { radius: 34, bubbles: 4, stroke: hover ? AERO.lime : AERO.stroke });
+  headline(ctx, 'PAUSED', PW / 2, 70, 58, AERO.aqua);
+  pillButton(ctx, 96, 130, PW - 192, 84, 'RESUME', AERO.lime, hover);
+  pillButton(ctx, 96, 240, PW - 192, 84, 'LEAVE — LOBBY', AERO.bubblegum, hover);
+  ctx.font = aeroFont(20, 700);
+  ctx.fillStyle = AERO.textDim;
+  ctx.fillText('press A to dismiss', PW / 2, 356);
+}
+
+function hitPause(u: number, v: number): MenuAction | null {
+  const x = u * PW;
+  const y = (1 - v) * PH;
+  if (x >= 96 && x <= PW - 96 && y >= 130 && y <= 214) return 'resume';
+  if (x >= 96 && x <= PW - 96 && y >= 240 && y <= 324) return 'leave';
+  return null;
+}
+
+/** Standalone pause panel (not part of the lobby group). */
+export function createPausePanel(): MenuPanel {
+  const panel = makePanel('pause', 0.62, 0.48, drawPause, hitPause);
+  panel.mesh.position.set(0, 1.45, -0.95);
+  panel.mesh.visible = false;
+  return panel;
 }
 
 export function createMenu(scene: Scene): Menu {
