@@ -67,8 +67,14 @@ import {
 const HALL = { hx: 13, hz: 17, low: 0.92, eaves: 4.2, peak: 8.6 };
 const RIB_ZS = [-17, -12.75, -8.5, -4.25, 0, 4.25, 8.5, 12.75, 17];
 
-/** Arena-local z of the hall centre: play area sits toward the goal end. */
-export const PAVILION_OFFSET_Z = 1.5;
+/**
+ * Arena-local z of the hall centre. The hall is 34 m deep; this offset
+ * parks the WHOLE court setup at the far end of it — the fence stands
+ * ~5 m in front of the far wall, with the benches, planters and the LED
+ * scoreboard filling the gap behind the cage as a spectator zone — and
+ * the rest of the deck opens out behind the attackers.
+ */
+export const PAVILION_OFFSET_Z = 10.5;
 
 const TEAL = '#2b8a99';
 const WHITE_STEEL = '#e8eae6';
@@ -255,10 +261,10 @@ function buildFloor(root: Group): void {
     roughnessMap: pad.roughnessMap,
     roughness: 1,
   });
-  const padMesh = new Mesh(new PlaneGeometry(17, 8.2), padMat);
+  const padMesh = new Mesh(new PlaneGeometry(17, 10.5), padMat);
   padMesh.rotation.x = -Math.PI / 2;
-  // Arena-local play centre ≈ z 1.1 → pavilion-local −0.4.
-  padMesh.position.set(0, -0.004, -0.4);
+  // Covers arena-local z −3.5…+7 (goal, fence, whole arc) → pavilion-local.
+  padMesh.position.set(0, -0.004, -8.75);
   padMesh.receiveShadow = true;
   root.add(padMesh);
 }
