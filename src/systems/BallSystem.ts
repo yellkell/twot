@@ -223,8 +223,9 @@ export class BallSystem extends createSystem({}) {
     }
 
     // A generous invisible sports hall keeps the ball in the room. The
-    // ceiling sits well above the 8 m fence so clearing it stays possible.
-    const WALL = 10;
+    // ceiling sits well above the fence so clearing it stays possible, and
+    // the side walls beyond the fence's 16 m span wherever it's anchored.
+    const WALL = 14;
     const CEIL = 14;
     if (Math.abs(ball.pos.x) > WALL) {
       ball.pos.x = Math.sign(ball.pos.x) * WALL;
