@@ -89,9 +89,11 @@ export function drawFootball(ctx: CanvasRenderingContext2D, cx: number, cy: numb
 
 export function createTitleBanner(parent: Object3D): Mesh {
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  // 2× supersample for crisp letters + tagline from the arc.
+  canvas.width = W * 2;
+  canvas.height = H * 2;
   const ctx = canvas.getContext('2d')!;
+  ctx.scale(2, 2);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const texture = new CanvasTexture(canvas);

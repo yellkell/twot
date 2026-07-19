@@ -10,8 +10,10 @@
  */
 
 export const AERO = {
-  glassTop: 'rgba(255,255,255,0.42)',
-  glassBottom: 'rgba(148,208,255,0.28)',
+  // Near-opaque: text has to survive a sunlit room behind it (passthrough)
+  // and the bright pavilion alike. The gloss lens keeps the aero look.
+  glassTop: 'rgba(255,255,255,0.94)',
+  glassBottom: 'rgba(188,223,247,0.92)',
   glassDeep: 'rgba(11,72,120,0.42)', // behind headline text
   stroke: 'rgba(255,255,255,0.85)',
   strokeSoft: 'rgba(255,255,255,0.35)',
@@ -173,21 +175,22 @@ export function pillButton(
   ctx.fillText(label.toUpperCase(), x + w / 2, y + h / 2 + 1);
 }
 
-/** Big glossy headline: white core, aqua depth, sits on any backdrop. */
+/** Big glossy headline: accent top fading to deep ink — reads on the
+ * (now near-opaque) glass panes instead of washing out white-on-white. */
 export function headline(
   ctx: CanvasRenderingContext2D,
   text: string,
   cx: number, cy: number, px: number,
-  color = AERO.textBright,
+  color = AERO.aqua,
 ): void {
   ctx.font = aeroFont(px, 900);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = 'rgba(8,50,84,0.55)';
-  ctx.fillText(text, cx, cy + px * 0.06);
+  ctx.fillStyle = 'rgba(8,50,84,0.45)';
+  ctx.fillText(text, cx, cy + px * 0.05);
   const g = ctx.createLinearGradient(0, cy - px / 2, 0, cy + px / 2);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(1, color);
+  g.addColorStop(0, color);
+  g.addColorStop(1, AERO.text);
   ctx.fillStyle = g;
   ctx.fillText(text, cx, cy);
 }

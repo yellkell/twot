@@ -53,10 +53,14 @@ function makePanel(
   canvasW = PW,
   canvasH = PH,
 ): MenuPanel {
+  // Supersample 2×: the draw code keeps its logical coordinates, but the
+  // texture carries double the pixels — text stays crisp at arm's length.
+  const DPI = 2;
   const canvas = document.createElement('canvas');
-  canvas.width = canvasW;
-  canvas.height = canvasH;
+  canvas.width = canvasW * DPI;
+  canvas.height = canvasH * DPI;
   const ctx = canvas.getContext('2d')!;
+  ctx.scale(DPI, DPI);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const texture = new CanvasTexture(canvas);

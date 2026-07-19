@@ -102,7 +102,7 @@ export const GOAL = {
 /**
  * The chain-link fence behind the goal — every sports centre has one.
  * It stands at the back of the net, runs WIDER than the whole platform arc
- * and FOUR GOALS high. Balls bounce off it and the rally stays alive; put
+ * and nearly THREE GOALS high. Balls bounce off it and the rally stays alive; put
  * one over it (or wide past its edge) and YOU'RE in goal — and at this
  * size, that takes a genuinely disgraceful slap.
  */
@@ -111,7 +111,7 @@ export const FENCE = {
   z: -1.35,
   /** 16 m wide — sails far past the platform arc (~±4.5) on both sides. */
   halfWidth: 8.0,
-  height: 6.0, // three goals high
+  height: 5.4, // just under three goals high
   restitution: 0.72,
   /** Post spacing for the visual frame. */
   postGap: 2.0,
@@ -143,6 +143,12 @@ export const BALL = {
   drag: 0.10,
   /** Magnus lift: spin × velocity → curve. This is the curve-shot dial. */
   magnus: 0.30,
+  /**
+   * Curve fade as the ball charges: at full heat the Magnus force is damped
+   * by this fraction. The small hot ball flies fast, and fast × spin was
+   * knuckleballing all over the shop — hot rallies stay hittable now.
+   */
+  hotCurveDamp: 0.65,
   /** Spin bleeds off at this fraction per second. */
   spinDecay: 0.6,
   maxSpin: 18, // rad/s cap

@@ -69,12 +69,14 @@ function makeRimRing(): { line: Line; mat: LineBasicMaterial } {
 function makeStation(accent: number): StationRig {
   const group = new Group();
 
+  // Low metalness and a strong emissive: metal + bright env reflections were
+  // washing the accents out to plain white under the pavilion sky.
   const slabMat = new MeshStandardMaterial({
     color: PALETTE.white,
     emissive: accent,
-    emissiveIntensity: 0.25,
-    metalness: 0.4,
-    roughness: 0.16,
+    emissiveIntensity: 0.55,
+    metalness: 0.1,
+    roughness: 0.3,
   });
   const slab = new Mesh(octagonSlab(OCTAGON_VERTICES, PLATFORM.thickness), slabMat);
   slab.position.y = -PLATFORM.thickness; // top face at the real floor

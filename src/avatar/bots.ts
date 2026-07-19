@@ -1,19 +1,25 @@
 /**
  * The sports-centre regulars — friendly aero mannequins: a glossy white
- * head with an accent visor, a soft capsule torso wearing an accent bib,
- * a floating name tag, and (of course) the same BIG SPORTS HANDS you have,
- * at 0.8 scale. No legs; this club floats, on brand with Iron Balls.
+ * head wearing the accent VISOR (it tracks the ball, so the visor sweeps
+ * with the play), an accent jersey with shoulders and a collar, and a
+ * deliberate spinning-top hover taper instead of legs — this club floats
+ * ON PURPOSE, soft shadow underneath to prove it. Plus the same BIG
+ * SPORTS HANDS you have, at 0.8 scale.
  *
  * The rig is deliberately dumb: BotPlayersSystem owns all movement and
- * drives the hands in world space.
+ * drives the hands in world space. Forward is -z (FWD in that system),
+ * so the face and cap brim live on the -z side of the head.
  */
 
 import {
   CanvasTexture,
   CapsuleGeometry,
+  CircleGeometry,
+  ConeGeometry,
   Group,
   LinearFilter,
   Mesh,
+  MeshBasicMaterial,
   MeshPhysicalMaterial,
   SphereGeometry,
   Sprite,
@@ -61,6 +67,8 @@ function nameTag(name: string, accentCss: string): Sprite {
   return sprite;
 }
 
+const WHITE = 0xf4f9ff;
+
 export interface BotAvatar {
   /** Body root (world space) — position at the bot's feet on its station. */
   group: Group;
@@ -75,30 +83,55 @@ export function buildBotAvatar(accent: number, name: string): BotAvatar {
   const group = new Group();
   group.name = `bot-${name}`;
 
-  // Torso: a soft white capsule with an accent bib ring at the chest.
-  const torso = new Mesh(new CapsuleGeometry(0.17, 0.42, 8, 20), glossMat(0xf4f9ff));
-  torso.position.y = 1.05;
+  // Jersey: an accent capsule so you can tell BAZZA from CHIPPY across the
+  // arc, with round shoulders and a white collar where the head sits.
+  const torso = new Mesh(new CapsuleGeometry(0.185, 0.3, 8, 20), glossMat(accent, accent, 0.12));
+  torso.position.y = 1.1;
   group.add(torso);
-  const bib = new Mesh(new TorusGeometry(0.175, 0.035, 12, 28), glossMat(accent, accent, 0.35));
-  bib.rotation.x = Math.PI / 2;
-  bib.position.y = 1.28;
-  group.add(bib);
+  for (const side of [-1, 1]) {
+    const shoulder = new Mesh(new SphereGeometry(0.075, 16, 12), glossMat(accent, accent, 0.12));
+    shoulder.position.set(side * 0.2, 1.36, 0);
+    group.add(shoulder);
+  }
+  const collar = new Mesh(new TorusGeometry(0.09, 0.03, 10, 24), glossMat(WHITE));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = 1.44;
+  group.add(collar);
 
-  // Head: glossy dome with an accent visor band.
+  // No legs — a spinning-top taper, so floating reads as the design, not
+  // an amputation. White shorts roll into a point.
+  const shorts = new Mesh(new SphereGeometry(0.17, 20, 14), glossMat(WHITE));
+  shorts.scale.set(1.05, 0.72, 0.95);
+  shorts.position.y = 0.84;
+  group.add(shorts);
+  const taper = new Mesh(new ConeGeometry(0.145, 0.44, 20), glossMat(WHITE));
+  taper.rotation.x = Math.PI; // apex down
+  taper.position.y = 0.62;
+  group.add(taper);
+  const shadow = new Mesh(
+    new CircleGeometry(0.3, 24),
+    new MeshBasicMaterial({ color: 0x06141f, transparent: true, opacity: 0.22, depthWrite: false }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.012;
+  group.add(shadow);
+
+  // Head: the glossy dome + tilted accent VISOR — cooler than any face.
+  // The head group still tracks the ball, so the visor sweeps with the play.
   const head = new Group();
   head.name = 'bot-head';
-  const dome = new Mesh(new SphereGeometry(0.125, 24, 18), glossMat(0xf4f9ff));
+  const dome = new Mesh(new SphereGeometry(0.145, 24, 18), glossMat(WHITE));
   head.add(dome);
-  const visor = new Mesh(new TorusGeometry(0.105, 0.028, 12, 28), glossMat(accent, accent, 0.8));
+  const visor = new Mesh(new TorusGeometry(0.122, 0.032, 12, 28), glossMat(accent, accent, 0.8));
   visor.rotation.x = Math.PI / 2.4;
-  visor.position.set(0, 0.015, -0.02);
+  visor.position.set(0, 0.018, -0.023);
   head.add(visor);
-  head.position.y = 1.62;
+  head.position.y = 1.63;
   group.add(head);
 
   const hex = `#${accent.toString(16).padStart(6, '0')}`;
   const tag = nameTag(name, hex);
-  tag.position.y = 1.98;
+  tag.position.y = 2.02;
   group.add(tag);
 
   const hands: [SportsHand, SportsHand] = [

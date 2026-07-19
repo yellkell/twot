@@ -226,8 +226,10 @@ export class BallSystem extends createSystem({}) {
   /** Ballistics + Magnus + the fatal floor. */
   private integrate(delta: number, alive: boolean): void {
     ball.vel.y -= gravityNow() * delta;
-    // Magnus: spin × velocity curls the path — the curve shot.
-    _accel.crossVectors(ball.spin, ball.vel).multiplyScalar(BALL.magnus);
+    // Magnus: spin × velocity curls the path — the curve shot. The force
+    // fades as the ball charges, or the fast hot ball curves unplayably.
+    const curve = BALL.magnus * (1 - BALL.hotCurveDamp * Math.min(1, ball.heat / 1.5));
+    _accel.crossVectors(ball.spin, ball.vel).multiplyScalar(curve);
     ball.vel.addScaledVector(_accel, delta);
     const drag = Math.max(0, 1 - BALL.drag * delta);
     ball.vel.multiplyScalar(drag);

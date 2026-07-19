@@ -14,7 +14,7 @@
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { app } from '../menu/appState.js';
 import { FENCE, GOAL, PUNISH, RALLY } from '../config.js';
-import { playerById } from '../game/roster.js';
+import { lineup, playerById } from '../game/roster.js';
 import { ball, gravityNow, keeperId, persist, rally, setMessage, twotLetters } from '../game/state.js';
 import { arenaRefs, arenaToWorld, worldToArena } from '../arena/arena.js';
 import { twotBoard } from '../arena/banner.js';
@@ -207,7 +207,10 @@ export class GoalSystem extends createSystem({}) {
     rally.score += banked;
 
     // --- THE TWOT LAW: light the keeper's next letter, big enough for all. ---
-    rally.conceded += 1;
+    // FULL HOUSE: every attacker touched this sequence before it went in —
+    // a team goal, and the keeper eats TWO letters for letting it brew.
+    const fullHouse = lineup.arc.every((id) => rally.touched.includes(id));
+    rally.conceded = Math.min(PUNISH.letters, rally.conceded + (fullHouse ? 2 : 1));
     const letters = twotLetters();
     const complete = rally.conceded >= PUNISH.letters;
     twotBoard?.setLit(rally.conceded, true);
@@ -219,12 +222,18 @@ export class GoalSystem extends createSystem({}) {
     sfx.goalHorn();
     spawnFireImpact(this.world, ball.pos);
     spawnRisingText(this.world, ball.pos, 'GOAL!', '#9be82a', 1.3);
+    if (fullHouse) {
+      arenaToWorld(0, GOAL.height * 0.45, 0.9, _pop);
+      spawnRisingText(this.world, _pop, 'FULL HOUSE ×2!', '#ffb226', 1.4);
+    }
 
     const gk = playerById(keeperId());
     if (complete) {
       sfx.twotComplete();
       setMessage(`T·W·O·T! ${gk.name} IS TWOT — form the line!`, '#ff5252', PUNISH.intro + 1);
       rally.pendingTwot = true;
+    } else if (fullHouse) {
+      setMessage(`FULL HOUSE ${flavour}GOAL! all five touched — TWO letters: "${letters}"`, '#ffb226', 3.4);
     } else {
       setMessage(`${flavour}GOAL! ${scorer.name} +${banked} — that's "${letters}"`, '#9be82a', 3.2);
     }
