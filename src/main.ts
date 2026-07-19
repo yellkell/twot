@@ -71,6 +71,10 @@ World.create(container, {
   // The lakeside pavilion backdrop (toggled against passthrough).
   world.registerSystem(PavilionSystem);
 
+  // Dev-only handle so headless harness scripts can reach the live World
+  // (stripped from production builds, where import.meta.env.DEV is false).
+  if (import.meta.env.DEV) (globalThis as unknown as { __twotWorld: unknown }).__twotWorld = world;
+
   // eslint-disable-next-line no-console
   console.info('[TWOT] World ready — hands big, ball up.');
 });

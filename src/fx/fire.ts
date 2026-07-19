@@ -120,8 +120,14 @@ const CORONA_VERT = /* glsl */ `
 /** A live fireball visual: position the group, call update() every frame. */
 export interface FireVisual {
   group: Group;
-  /** time = seconds, heat = 0..1.7, cameraQuat billboards the corona. */
-  update(time: number, heat: number, cameraQuat: Quaternion): void;
+  /**
+   * time = seconds, heat = 0..1.7, cameraQuat billboards the corona.
+   * `coronaScale` shrinks the big additive corona plane when the ball is
+   * right in front of your face — the corona is a full-screen fbm pass, so
+   * at arm's length it's a fill-rate bomb; scaling it down cuts the covered
+   * pixels (and the hitch) without touching the ball at rally distance.
+   */
+  update(time: number, heat: number, cameraQuat: Quaternion, coronaScale?: number): void;
   dispose(): void;
 }
 
@@ -158,12 +164,13 @@ export function createFireVisual(team: 0 | 1): FireVisual {
 
   return {
     group,
-    update(time, heat, cameraQuat) {
+    update(time, heat, cameraQuat, coronaScale = 1) {
       coreMat.uniforms.uTime.value = time;
       coreMat.uniforms.uHeat.value = heat;
       coronaMat.uniforms.uTime.value = time;
       coronaMat.uniforms.uHeat.value = heat;
       corona.quaternion.copy(group.quaternion).invert().multiply(cameraQuat);
+      corona.scale.setScalar(coronaScale);
     },
     dispose() {
       coreMat.dispose();
@@ -280,7 +287,9 @@ const _c = new Color();
 export function initFirePools(scene: Scene): void {
   if (emberPool) return;
   emberPool = new ParticlePool(1024);
-  trailPool = new ParticlePool(2048, { maxPx: 800, lifeExp: 2.2 });
+  // maxPx capped low: an 800 px additive trail slug filling the near field was
+  // the other half of the charged-ball hitch as the comet swept past your face.
+  trailPool = new ParticlePool(2048, { maxPx: 240, lifeExp: 2.2 });
   scene.add(emberPool.points, trailPool.points);
 }
 

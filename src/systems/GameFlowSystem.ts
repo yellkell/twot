@@ -130,6 +130,19 @@ export class GameFlowSystem extends createSystem({}) {
   // --- dead balls + serves ---------------------------------------------------
 
   private deadBall(reason: 'bounce' | 'lost'): void {
+    // A half-volleyed save was riding on this rally: it died with no goal, so
+    // the shooter whose shot was clawed clear now pays with the gloves.
+    if (rally.savedShooter) {
+      const shooterId = rally.savedShooter;
+      rally.savedShooter = null;
+      rally.shot = null;
+      spawnRisingText(this.world, ball.pos, 'NO GOAL!', '#ff5252', 0.9);
+      setMessage(`NO GOAL — ${playerById(shooterId).name} pays for the saved shot!`, '#ff5252', 2.6);
+      rally.pendingSwap = { newKeeper: shooterId, reason: 'save' };
+      this.beginRotation();
+      return;
+    }
+
     rally.phase = 'dead';
     rally.combo = 0;
     rally.shot = null;
@@ -285,6 +298,7 @@ export class GameFlowSystem extends createSystem({}) {
   private beginRotation(): void {
     const swap = rally.pendingSwap!;
     rally.pendingSwap = null;
+    rally.savedShooter = null; // any rotation settles the deferred-save debt
     rally.phase = 'rotate';
     rally.rotateTimer = RALLY.rotateTime;
     rally.combo = 0;

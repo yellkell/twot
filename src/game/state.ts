@@ -90,6 +90,12 @@ export const rally = {
    * 'notlive' = they buried it before the ball was live.
    */
   pendingSwap: null as { newKeeper: string; reason: 'save' | 'over' | 'notlive' } | null,
+  /**
+   * A keeper HALF-VOLLEYED a shot clear and kept it live. The debt is held
+   * over: if this rally dies with no goal, this shooter goes in goal; if
+   * anyone scores first, it's wiped and play carries on.
+   */
+  savedShooter: null as string | null,
   /** Goals conceded by the CURRENT keeper — lights the T·W·O·T letters. */
   conceded: 0,
   /** The word is complete — GameFlowSystem starts the ceremony. */
@@ -196,6 +202,7 @@ export function resetRally(server: string): void {
   rally.touched = [];
   rally.live = false;
   rally.shot = null;
+  rally.savedShooter = null;
   rally.server = server;
   ball.lastHitBy = '';
   ball.bouncedAt = -1;
