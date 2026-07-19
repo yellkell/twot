@@ -122,18 +122,26 @@ export class HudSystem extends createSystem({}) {
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = BOARD.hairline;
     ctx.stroke();
+    // Shrink to fit the band so nothing ever runs off the edge.
+    const bandMaxW = W - 84;
+    const fitPx = (text: string, target: number, weight: number): number => {
+      ctx.font = aeroFont(target, weight);
+      const w = ctx.measureText(text).width;
+      return w > bandMaxW ? Math.floor(target * (bandMaxW / w)) : target;
+    };
     if (rally.message) {
-      boardGlow(ctx, rally.message, W / 2, 273, 40, rally.messageColor, 'center');
+      boardGlow(ctx, rally.message, W / 2, 273, fitPx(rally.message, 40, 900), rally.messageColor, 'center');
     } else {
       const goals = Object.entries(rally.goals)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
         .map(([id, n]) => `${playerById(id).name} ${n}`)
         .join('   ·   ');
-      ctx.font = aeroFont(26, 700);
+      const line = goals ? `GOALS   ${goals}` : 'three touches make the ball LIVE';
+      ctx.font = aeroFont(fitPx(line, 26, 700), 700);
       ctx.textAlign = 'center';
       ctx.fillStyle = BOARD.slate;
-      ctx.fillText(goals ? `GOALS   ${goals}` : 'first to three touches makes it LIVE', W / 2, 273);
+      ctx.fillText(line, W / 2, 273);
     }
 
     this.texture.needsUpdate = true;
