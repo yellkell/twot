@@ -250,9 +250,11 @@ function buildFloor(root: Group): void {
   g.rotateX(-Math.PI / 2);
   scaleUV(g, (HALL.hx * 2) / 1.35, (HALL.hz * 2) / 4.2);
   const deck = new Mesh(g, deckMat);
-  // Sits a good step below the game's floor plane so the octagon pedestals
-  // (tops at y = 0, the real floor you stand on) rise visibly out of it.
-  deck.position.y = -0.065;
+  // Sits nearly a full pedestal below the game's floor plane so the octagon
+  // platforms (tops at y = 0, the real floor you stand on) rise almost their
+  // whole height out of it — matching how they read as raised plinths in
+  // passthrough, where there's no floor under them at all.
+  deck.position.y = -0.125;
   deck.receiveShadow = true;
   root.add(deck);
 
@@ -266,8 +268,8 @@ function buildFloor(root: Group): void {
   const padMesh = new Mesh(new PlaneGeometry(17, 10.5), padMat);
   padMesh.rotation.x = -Math.PI / 2;
   // Covers arena-local z −3.5…+7 (goal, fence, whole arc) → pavilion-local.
-  // Just above the deck, still below the raised pedestals.
-  padMesh.position.set(0, -0.06, -8.75);
+  // A whisker above the deck, so the platforms rise out of the play surface.
+  padMesh.position.set(0, -0.118, -8.75);
   padMesh.receiveShadow = true;
   root.add(padMesh);
 }

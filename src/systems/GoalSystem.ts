@@ -239,6 +239,7 @@ export class GoalSystem extends createSystem({}) {
     }
 
     rally.shot = null;
+    rally.savedShooter = null; // a goal clears any deferred half-volley-save debt
     rally.combo = 0;
     rally.phase = 'dead';
     rally.serveTimer = complete ? PUNISH.intro : RALLY.serveDelay + 1.4;

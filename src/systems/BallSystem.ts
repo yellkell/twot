@@ -123,6 +123,7 @@ function soccerBallTexture(): CanvasTexture {
 }
 
 const _camQ = new Quaternion();
+const _camPos = new Vector3();
 const _anchor = new Vector3();
 const _accel = new Vector3();
 const _axis = new Vector3();
@@ -298,11 +299,17 @@ export class BallSystem extends createSystem({}) {
     const char = 1 - burn * 0.82;
     this.shellMat.color.setRGB(char, char * 0.92, char * 0.85);
     this.shell.visible = true;
+    // How close the ball is to your eyes — drives the anti-hitch fire fade.
+    this.world.camera.getWorldPosition(_camPos);
+    const camDist = _camPos.distanceTo(ball.pos);
+    // 1 at rally distance, easing to 0.3 as it comes within ~0.6 m of your face.
+    const nearK = Math.min(1, Math.max(0.3, (camDist - 0.55) / (1.7 - 0.55)));
+
     const fireOn = ball.heat > 0.05;
     this.fire.group.visible = fireOn;
     if (fireOn) {
       this.world.camera.getWorldQuaternion(_camQ);
-      this.fire.update(this.time, 0.3 + ball.heat, _camQ);
+      this.fire.update(this.time, 0.3 + ball.heat, _camQ, nearK);
     }
 
     // LIVE halo: a slow lime pulse so everyone knows it can be buried.
@@ -313,9 +320,11 @@ export class BallSystem extends createSystem({}) {
       this.liveGlow.material.opacity = 0.32 + Math.sin(this.time * 5) * 0.1;
     }
 
-    // Comet trail + drifting embers once it's burning and moving.
+    // Comet trail + drifting embers once it's burning and moving. Skip the
+    // fat trail stamps when the ball is right on top of you — those additive
+    // slugs blowing up in the near field are pure fill-rate hitch.
     const speed = ball.vel.length();
-    if (ball.heat > 0.35 && speed > 2 && rally.phase === 'rally') {
+    if (ball.heat > 0.35 && speed > 2 && rally.phase === 'rally' && camDist > 0.8) {
       this.trailAcc += delta;
       if (this.trailAcc >= 0.014) {
         this.trailAcc = 0;

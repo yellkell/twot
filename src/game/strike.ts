@@ -139,13 +139,31 @@ export function strikeBall(
   if (shot && strikerId === keeperId() && shot.shooter !== strikerId) {
     striker.stats.saves += 1;
     rally.shot = null;
-    rally.pendingSwap = { newKeeper: shot.shooter, reason: 'save' };
     ball.lastHitBy = strikerId;
     ball.lastHitAt = rally.time;
     ball.lastTouchAt = rally.time;
+    ball.bouncedAt = -1; // whatever bounce fed the save, the ball's live again
     sfx.saveThump();
     spawnTouchPop(world, ball.pos, striker.accent, 1.4);
     if (ball.heat > 0.3) spawnFireImpact(world, ball.pos, PALETTE.ember);
+
+    if (halfVolley) {
+      // A HALF-VOLLEY save: scrambled it clear right off the deck and kept it
+      // ALIVE. Don't swap yet — hold the shooter's debt over. Score before it
+      // dies and they're off the hook; let it die and they're in goal.
+      rally.savedShooter = shot.shooter;
+      spawnRisingText(world, ball.pos, 'WHAT A SAVE!', '#ffb226', 0.9);
+      setMessage(
+        `${striker.name} HALF-VOLLEYS IT CLEAR — score or ${playerById(shot.shooter).name} goes in!`,
+        '#ffb226',
+        2.6,
+      );
+      persist();
+      return { saved: true, power, halfVolley: true, strength: 1 };
+    }
+
+    // A plain save: shooter takes the gloves right away.
+    rally.pendingSwap = { newKeeper: shot.shooter, reason: 'save' };
     spawnRisingText(world, ball.pos, 'SAVED!', '#9be82a', 0.8);
     setMessage(`${striker.name} SAVES IT!`, '#9be82a', 2.4);
     persist();

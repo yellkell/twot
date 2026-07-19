@@ -14,6 +14,7 @@
 
 import {
   BufferGeometry,
+  Color,
   Group,
   HemisphereLight,
   Line,
@@ -69,14 +70,19 @@ function makeRimRing(): { line: Line; mat: LineBasicMaterial } {
 function makeStation(accent: number): StationRig {
   const group = new Group();
 
-  // Low metalness and a strong emissive: metal + bright env reflections were
-  // washing the accents out to plain white under the pavilion sky.
+  // The accent has to READ as the platform's colour, in passthrough and under
+  // the bright pavilion sky alike. A near-white base plus a faint emissive was
+  // washing to plain white the moment the sky's env map lit it — so tint the
+  // base itself toward the accent, drop the env reflection right down, and let
+  // a strong accent emissive carry the colour even in shadow.
+  const base = new Color(accent).lerp(new Color(0xffffff), 0.24);
   const slabMat = new MeshStandardMaterial({
-    color: PALETTE.white,
+    color: base,
     emissive: accent,
-    emissiveIntensity: 0.55,
-    metalness: 0.1,
-    roughness: 0.3,
+    emissiveIntensity: 0.85,
+    metalness: 0.0,
+    roughness: 0.4,
+    envMapIntensity: 0.1,
   });
   const slab = new Mesh(octagonSlab(OCTAGON_VERTICES, PLATFORM.thickness), slabMat);
   slab.position.y = -PLATFORM.thickness; // top face at the real floor
