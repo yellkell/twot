@@ -109,9 +109,27 @@ export function createTitleBanner(parent: Object3D): Mesh {
     boardPanel(ctx, 8, 8, W - 16, H - 16, 44);
 
     // T W ⚽ T — letters ghost dark until the keeper concedes them ALIGHT.
+    // Laid out from measured glyph widths with even gaps, so the football
+    // O sits flush in the word instead of drifting; it's also nudged up to
+    // the capitals' optical centre (baseline-middle sits below it).
     const y = 152;
     const px = 210;
-    const xs = [190, 402, 618, 834];
+    const ballR = 92;
+    const ballY = y - 10;
+    const gap = 40;
+    ctx.font = aeroFont(px, 900);
+    const wT = ctx.measureText('T').width;
+    const wW = ctx.measureText('W').width;
+    const total = wT + gap + wW + gap + ballR * 2 + gap + wT;
+    let cursor = (W - total) / 2;
+    const xs: number[] = [];
+    xs.push(cursor + wT / 2);
+    cursor += wT + gap;
+    xs.push(cursor + wW / 2);
+    cursor += wW + gap;
+    xs.push(cursor + ballR);
+    cursor += ballR * 2 + gap;
+    xs.push(cursor + wT / 2);
     const word = ['T', 'W', 'O', 'T'];
     for (let i = 0; i < 4; i++) {
       const isLit = i < lit;
@@ -122,12 +140,12 @@ export function createTitleBanner(parent: Object3D): Mesh {
           ctx.shadowColor = '#ff2617';
           ctx.shadowBlur = 42;
           ctx.beginPath();
-          ctx.arc(xs[i], y, 96, 0, Math.PI * 2);
+          ctx.arc(xs[i], ballY, ballR + 4, 0, Math.PI * 2);
           ctx.fillStyle = '#e02b1d';
           ctx.fill();
           ctx.restore();
         }
-        drawFootball(ctx, xs[i], y, 92, isLit ? 1 : 0.22);
+        drawFootball(ctx, xs[i], ballY, ballR, isLit ? 1 : 0.22);
         continue;
       }
       ctx.font = aeroFont(px, 900);
