@@ -6,7 +6,7 @@
  * shame, top scorers and the aura king.
  */
 
-import { createSystem, Vector3 } from '@iwsdk/core';
+import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { app, type ViewMode } from '../menu/appState.js';
 import { playerById, roster } from '../game/roster.js';
 import { keeperId, rally, twotLetters } from '../game/state.js';
@@ -14,6 +14,8 @@ import { arenaRefs } from '../arena/arena.js';
 import { buildPavilion, setPavilionView, tickPavilion, type PavilionRig } from '../pavilion/pavilion.js';
 
 const _head = new Vector3();
+const _rootPos = new Vector3();
+const _rootQ = new Quaternion();
 
 export class PavilionSystem extends createSystem({}) {
   private rig!: PavilionRig;
@@ -35,6 +37,16 @@ export class PavilionSystem extends createSystem({}) {
       this.drawBoard();
     }
     if (app.view !== 'pavilion') return;
+
+    // The shadow map is baked once and frozen (static scene, Quest-friendly)
+    // — but the whole pavilion rides arena-root, which re-anchors on PLAY and
+    // every keeper rotation. A frozen map from the old anchor paints a giant
+    // stale shadow edge across the court, so re-bake whenever the root moves.
+    if (!_rootPos.equals(arenaRefs.root.position) || !_rootQ.equals(arenaRefs.root.quaternion)) {
+      _rootPos.copy(arenaRefs.root.position);
+      _rootQ.copy(arenaRefs.root.quaternion);
+      this.world.renderer.shadowMap.needsUpdate = true;
+    }
 
     const head = this.playerHeadEntity?.object3D;
     if (head) head.getWorldPosition(_head);

@@ -250,7 +250,9 @@ function buildFloor(root: Group): void {
   g.rotateX(-Math.PI / 2);
   scaleUV(g, (HALL.hx * 2) / 1.35, (HALL.hz * 2) / 4.2);
   const deck = new Mesh(g, deckMat);
-  deck.position.y = -0.008; // just under the game's floor plane
+  // Sits a good step below the game's floor plane so the octagon pedestals
+  // (tops at y = 0, the real floor you stand on) rise visibly out of it.
+  deck.position.y = -0.065;
   deck.receiveShadow = true;
   root.add(deck);
 
@@ -264,7 +266,8 @@ function buildFloor(root: Group): void {
   const padMesh = new Mesh(new PlaneGeometry(17, 10.5), padMat);
   padMesh.rotation.x = -Math.PI / 2;
   // Covers arena-local z −3.5…+7 (goal, fence, whole arc) → pavilion-local.
-  padMesh.position.set(0, -0.004, -8.75);
+  // Just above the deck, still below the raised pedestals.
+  padMesh.position.set(0, -0.06, -8.75);
   padMesh.receiveShadow = true;
   root.add(padMesh);
 }
@@ -910,6 +913,10 @@ function buildLights(root: Group): void {
   sun.shadow.camera.far = 220;
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
+  // Half-strength shadows: the hall's arch ribs throw big bands across the
+  // court, and at full darkness they read as a hard "everything is darker
+  // past this line" edge instead of soft indoor shading.
+  sun.shadow.intensity = 0.45;
   root.add(sun);
   root.add(sun.target);
 }
