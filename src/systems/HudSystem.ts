@@ -32,9 +32,11 @@ export class HudSystem extends createSystem({}) {
 
   init(): void {
     const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
+    // 2× supersample so the message line reads from the arc.
+    canvas.width = W * 2;
+    canvas.height = H * 2;
     this.ctx = canvas.getContext('2d')!;
+    this.ctx.scale(2, 2);
     this.ctx.textAlign = 'center';
     this.ctx.textBaseline = 'middle';
     this.texture = new CanvasTexture(canvas);
