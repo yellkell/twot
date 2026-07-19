@@ -363,6 +363,10 @@ function glassMaterial(): MeshStandardMaterial {
     metalness: 0,
     side: DoubleSide,
     envMapIntensity: 1.5,
+    // Glass must never occlude: with depthWrite on, whenever a pane sorted
+    // in front of the ball it stamped the depth buffer and a lobbed ball
+    // vanished above the roof. It's 18% glass — you can see through it.
+    depthWrite: false,
   });
 }
 
