@@ -16,10 +16,28 @@ import {
 import { app } from '../menu/appState.js';
 import { GOAL } from '../config.js';
 import { playerById } from '../game/roster.js';
-import { ball, keeperId, rally, twotLetters } from '../game/state.js';
+import { ball, keeperId, rally } from '../game/state.js';
 import { arenaRefs } from '../arena/arena.js';
 import { twotBoard } from '../arena/banner.js';
-import { AERO, aeroFont, glassPanel } from '../ui/aero.js';
+import {
+  aeroFont,
+  BOARD,
+  boardGlow,
+  boardLabel,
+  boardPanel,
+  heatBar,
+  letterTrack,
+  liveLamp,
+  roundPath,
+} from '../ui/aero.js';
+
+/** Accent hex lifted toward white so team colours read on the dark board. */
+export function boardAccent(accent: number, lift = 0.35): string {
+  const r = Math.round(((accent >> 16) & 0xff) * (1 - lift) + 255 * lift);
+  const g = Math.round(((accent >> 8) & 0xff) * (1 - lift) + 255 * lift);
+  const b = Math.round((accent & 0xff) * (1 - lift) + 255 * lift);
+  return `rgb(${r},${g},${b})`;
+}
 
 const W = 1024;
 const H = 288;
@@ -66,70 +84,54 @@ export class HudSystem extends createSystem({}) {
   private draw(): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, W, H);
-    glassPanel(ctx, 6, 6, W - 12, H - 12, { radius: 40, bubbles: 0 });
+    ctx.textBaseline = 'middle';
+    boardPanel(ctx, 6, 6, W - 12, H - 12, 34);
 
-    // Score, left.
-    ctx.textAlign = 'left';
-    ctx.font = aeroFont(30, 800);
-    ctx.fillStyle = AERO.textDim;
-    ctx.fillText('SCORE', 52, 66);
-    ctx.font = aeroFont(58, 900);
-    ctx.fillStyle = AERO.text;
-    ctx.fillText(String(rally.score), 52, 122);
+    // Column dividers.
+    ctx.fillStyle = BOARD.hairline;
+    ctx.fillRect(330, 30, 1.5, 162);
+    ctx.fillRect(700, 30, 1.5, 162);
 
-    // Combo, centre — warms with the ball.
-    const combo = rally.combo;
-    const hot = Math.min(1, ball.heat / 1.2);
+    // --- SCORE, left. ---
+    boardLabel(ctx, 'SCORE', 42, 50);
+    boardGlow(ctx, String(rally.score), 42, 126, 76, BOARD.value);
+
+    // --- COMBO, centre — digits warm with the ball, heat bar underneath. ---
+    const hot = Math.min(1, ball.heat / 1.5);
     const comboColor = hot > 0.05
-      ? `rgb(255,${Math.round(200 - hot * 120)},${Math.round(80 - hot * 60)})`
-      : AERO.text;
-    ctx.textAlign = 'center';
-    ctx.font = aeroFont(34, 800);
-    ctx.fillStyle = AERO.textDim;
-    ctx.fillText('COMBO', W / 2, 58);
-    ctx.font = aeroFont(84, 900);
-    ctx.fillStyle = comboColor;
-    ctx.fillText(`×${combo}`, W / 2, 128);
+      ? `rgb(255,${Math.round(212 - hot * 130)},${Math.round(110 - hot * 90)})`
+      : BOARD.value;
+    boardLabel(ctx, 'COMBO', 515, 50, 'center');
+    boardGlow(ctx, `×${rally.combo}`, 515, 118, 82, comboColor, 'center');
+    heatBar(ctx, 425, 154, 180, 11, hot);
+    liveLamp(ctx, 515, 182, 150, 30, rally.live && rally.phase === 'rally');
 
-    // LIVE lamp.
-    if (rally.live && rally.phase === 'rally') {
-      ctx.font = aeroFont(30, 900);
-      ctx.fillStyle = AERO.lime;
-      ctx.fillText('● LIVE', W / 2 + 190, 58);
-    }
-
-    // Keeper, right — with their letters of shame so far.
+    // --- IN GOAL, right — keeper, stint clock, letter track. ---
     const gk = playerById(keeperId());
-    ctx.textAlign = 'right';
-    ctx.font = aeroFont(30, 800);
-    ctx.fillStyle = AERO.textDim;
-    ctx.fillText('IN GOAL', W - 52, 66);
-    ctx.font = aeroFont(44, 900);
-    ctx.fillStyle = `#${gk.accent.toString(16).padStart(6, '0')}`;
-    ctx.fillText(`${gk.name} · ${Math.floor(rally.keeperClock)}s`, W - 52, 122);
-    const letters = twotLetters();
-    if (letters) {
-      ctx.font = aeroFont(34, 900);
-      ctx.fillStyle = rally.conceded >= 3 ? AERO.danger : AERO.sun;
-      ctx.fillText(letters, W - 52, 164);
-    }
+    boardLabel(ctx, `IN GOAL · ${Math.floor(rally.keeperClock)}s`, W - 42, 50, 'right');
+    boardGlow(ctx, gk.name, W - 42, 112, 42, boardAccent(gk.accent), 'right');
+    letterTrack(ctx, W - 42, 148, 36, 44, 8, rally.conceded);
 
-    // Message line.
+    // --- Message band. ---
+    roundPath(ctx, 16, 206, W - 32, 68, 16);
+    ctx.fillStyle = BOARD.inset;
+    ctx.fill();
+    roundPath(ctx, 16, 206, W - 32, 68, 16);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = BOARD.hairline;
+    ctx.stroke();
     if (rally.message) {
-      ctx.textAlign = 'center';
-      ctx.font = aeroFont(44, 900);
-      ctx.fillStyle = rally.messageColor;
-      ctx.fillText(rally.message, W / 2, 218);
+      boardGlow(ctx, rally.message, W / 2, 241, 40, rally.messageColor, 'center');
     } else {
-      ctx.textAlign = 'center';
-      ctx.font = aeroFont(30, 700);
-      ctx.fillStyle = AERO.textDim;
       const goals = Object.entries(rally.goals)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
         .map(([id, n]) => `${playerById(id).name} ${n}`)
         .join('   ·   ');
-      ctx.fillText(goals ? `GOALS  ${goals}` : 'first to three touches makes it LIVE', W / 2, 218);
+      ctx.font = aeroFont(26, 700);
+      ctx.textAlign = 'center';
+      ctx.fillStyle = BOARD.slate;
+      ctx.fillText(goals ? `GOALS   ${goals}` : 'first to three touches makes it LIVE', W / 2, 241);
     }
 
     this.texture.needsUpdate = true;
