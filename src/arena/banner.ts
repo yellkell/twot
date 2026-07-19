@@ -12,13 +12,14 @@ import {
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
+  SRGBColorSpace,
   type Object3D,
 } from 'three';
 import { GOAL } from '../config.js';
-import { AERO, aeroFont, glassPanel, swoosh } from '../ui/aero.js';
+import { aeroFont, boardPanel } from '../ui/aero.js';
 
 const W = 1024;
-const H = 400;
+const H = 300;
 
 export interface TwotBoard {
   mesh: Mesh;
@@ -98,57 +99,68 @@ export function createTitleBanner(parent: Object3D): Mesh {
   ctx.textBaseline = 'middle';
   const texture = new CanvasTexture(canvas);
   texture.minFilter = LinearFilter;
+  texture.colorSpace = SRGBColorSpace; // keep the dark board face dark
 
   let lit = 0;
   let pop = 0;
 
   const draw = (): void => {
     ctx.clearRect(0, 0, W, H);
-    glassPanel(ctx, 10, 10, W - 20, H - 20, { radius: 60, bubbles: 8 });
-    swoosh(ctx, 40, 292, W - 300, 60, AERO.lime);
+    boardPanel(ctx, 8, 8, W - 16, H - 16, 44);
 
-    // T W ⚽ T — letters ghost in grey until the keeper concedes them alive.
-    const y = 150;
-    const px = 190;
-    const xs = [200, 400, 610, 820];
-    const colors = [AERO.aqua, AERO.aqua, '', AERO.aqua];
+    // T W ⚽ T — letters ghost dark until the keeper concedes them ALIGHT.
+    const y = 152;
+    const px = 210;
+    const xs = [190, 402, 618, 834];
     const word = ['T', 'W', 'O', 'T'];
     for (let i = 0; i < 4; i++) {
       const isLit = i < lit;
       if (i === 2) {
-        drawFootball(ctx, xs[i], y, 92, isLit ? 1 : 0.28);
+        if (isLit) {
+          // The football burns on its red halo when its letter is conceded.
+          ctx.save();
+          ctx.shadowColor = '#ff2617';
+          ctx.shadowBlur = 42;
+          ctx.beginPath();
+          ctx.arc(xs[i], y, 96, 0, Math.PI * 2);
+          ctx.fillStyle = '#e02b1d';
+          ctx.fill();
+          ctx.restore();
+        }
+        drawFootball(ctx, xs[i], y, 92, isLit ? 1 : 0.22);
         continue;
       }
       ctx.font = aeroFont(px, 900);
       if (isLit) {
-        ctx.fillStyle = 'rgba(8,50,84,0.55)';
-        ctx.fillText(word[i], xs[i], y + px * 0.06);
-        const g = ctx.createLinearGradient(0, y - px / 2, 0, y + px / 2);
-        g.addColorStop(0, '#ffffff');
-        g.addColorStop(1, colors[i]);
-        ctx.fillStyle = g;
+        ctx.save();
+        ctx.shadowColor = '#ff2617';
+        ctx.shadowBlur = 34;
+        ctx.fillStyle = '#ff4030';
         ctx.fillText(word[i], xs[i], y);
+        ctx.restore();
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.font = aeroFont(px, 900);
+        ctx.save();
+        ctx.globalAlpha = 0.16;
+        ctx.fillText(word[i], xs[i], y - 3);
+        ctx.restore();
       } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.30)';
+        ctx.fillStyle = 'rgba(255,255,255,0.14)';
         ctx.fillText(word[i], xs[i], y);
-        ctx.strokeStyle = 'rgba(8,58,94,0.28)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.20)';
         ctx.lineWidth = 3;
         ctx.strokeText(word[i], xs[i], y);
       }
     }
-
-    ctx.font = aeroFont(38, 700);
-    ctx.fillStyle = AERO.text;
-    ctx.fillText('concede four letters and the slap line forms', W / 2, 310);
     texture.needsUpdate = true;
   };
 
   const mesh = new Mesh(
-    new PlaneGeometry(2.6, 1.02),
+    new PlaneGeometry(2.6, 0.76),
     new MeshBasicMaterial({ map: texture, transparent: true }),
   );
   mesh.name = 'title-banner';
-  mesh.position.set(0, GOAL.height + 1.55, -0.4);
+  mesh.position.set(0, GOAL.height + 1.68, -0.4);
   mesh.rotation.x = -0.08;
   parent.add(mesh);
   draw();
