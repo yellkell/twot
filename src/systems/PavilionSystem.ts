@@ -9,8 +9,21 @@
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { app, type ViewMode } from '../menu/appState.js';
 import { playerById, roster } from '../game/roster.js';
-import { keeperId, rally, twotLetters } from '../game/state.js';
+import { ball, keeperId, rally } from '../game/state.js';
 import { arenaRefs } from '../arena/arena.js';
+import { drawFootball } from '../arena/banner.js';
+import { boardAccent } from './HudSystem.js';
+import {
+  AERO,
+  aeroFont,
+  BOARD,
+  boardGlow,
+  boardLabel,
+  boardPanel,
+  heatBar,
+  letterTrack,
+  liveLamp,
+} from '../ui/aero.js';
 import { buildPavilion, setPavilionView, tickPavilion, type PavilionRig } from '../pavilion/pavilion.js';
 
 const _head = new Vector3();
@@ -59,72 +72,63 @@ export class PavilionSystem extends createSystem({}) {
     }
   }
 
-  /** The LED feed: dark glass, lime digits, the word of shame in red. */
+  /** The LED feed — the same arena-board language as the goal HUD. */
   private drawBoard(): void {
-    const canvas = this.rig.scoreCanvas;
-    const ctx = canvas.getContext('2d')!;
-    const W = canvas.width;
-    const H = canvas.height;
-    ctx.fillStyle = '#04070c';
+    const ctx = this.rig.scoreCanvas.getContext('2d')!;
+    const W = 640; // logical size — the canvas carries 2× pixels
+    const H = 320;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#02060b'; // dead-pixel black behind the panel
     ctx.fillRect(0, 0, W, H);
     ctx.textBaseline = 'middle';
+    boardPanel(ctx, 4, 4, W - 8, H - 8, 20);
 
-    const led = (px: number, weight = 900) => `${weight} ${px}px 'Trebuchet MS', Verdana, monospace`;
-
-    // Header strip.
-    ctx.textAlign = 'left';
-    ctx.font = led(44);
-    ctx.fillStyle = '#9be82a';
-    ctx.fillText('TW⚽T', 24, 36);
-    ctx.textAlign = 'right';
-    ctx.font = led(26, 700);
-    ctx.fillStyle = '#4fb7ff';
+    // Header: the wordmark (the O is a football, obviously) + who's in goal.
+    boardGlow(ctx, 'TW', 26, 34, 40, AERO.lime, 'left');
+    const twW = ctx.measureText('TW').width;
+    drawFootball(ctx, 26 + twW + 21, 34, 18, 1);
+    boardGlow(ctx, 'T', 26 + twW + 43, 34, 40, AERO.lime, 'left');
     const gk = playerById(keeperId());
-    ctx.fillText(`GK ${gk.name} ${Math.floor(rally.keeperClock)}s`, W - 24, 36);
-    ctx.strokeStyle = '#12324a';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(16, 64);
-    ctx.lineTo(W - 16, 64);
-    ctx.stroke();
+    boardGlow(ctx, `${gk.name} · ${Math.floor(rally.keeperClock)}s`, W - 26, 34, 26, boardAccent(gk.accent), 'right');
+    const gkW = ctx.measureText(`${gk.name} · ${Math.floor(rally.keeperClock)}s`).width;
+    boardLabel(ctx, 'GK', W - 26 - gkW - 12, 34, 'right', 20);
+    ctx.fillStyle = BOARD.hairline;
+    ctx.fillRect(18, 60, W - 36, 1.5);
 
-    // Score + combo + letters.
-    ctx.textAlign = 'left';
-    ctx.font = led(24, 700);
-    ctx.fillStyle = '#6a86a0';
-    ctx.fillText('SCORE', 24, 96);
-    ctx.fillText('COMBO', 24, 168);
-    ctx.font = led(52);
-    ctx.fillStyle = '#eaffea';
-    ctx.fillText(String(rally.score), 140, 96);
-    ctx.fillStyle = rally.live ? '#9be82a' : '#eaffea';
-    ctx.fillText(`×${rally.combo}`, 140, 168);
-    const letters = twotLetters();
-    ctx.textAlign = 'right';
-    ctx.font = led(64);
-    ctx.fillStyle = '#ff4040';
-    ctx.fillText(letters || '····', W - 24, 132);
+    // Main row: score | combo + heat + lamp | the letter track.
+    boardLabel(ctx, 'SCORE', 28, 92);
+    boardGlow(ctx, String(rally.score), 28, 148, 58, BOARD.value);
+
+    const hot = Math.min(1, ball.heat / 1.5);
+    const comboColor = hot > 0.05
+      ? `rgb(255,${Math.round(212 - hot * 130)},${Math.round(110 - hot * 90)})`
+      : BOARD.value;
+    boardLabel(ctx, 'COMBO', 320, 92, 'center');
+    boardGlow(ctx, `×${rally.combo}`, 320, 146, 58, comboColor, 'center');
+    heatBar(ctx, 262, 182, 116, 9, hot);
+    liveLamp(ctx, 320, 207, 116, 25, rally.live && rally.phase === 'rally');
+
+    letterTrack(ctx, W - 26, 96, 44, 56, 9, rally.conceded);
 
     // Ticker: top scorers this session + the aura king of all time.
+    ctx.fillStyle = BOARD.hairline;
+    ctx.fillRect(18, 232, W - 36, 1.5);
     const goals = Object.entries(rally.goals)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([id, n]) => `${playerById(id).name} ${n}`)
       .join('  ·  ');
-    const auraKing = [...roster].sort((a, b) => b.stats.aura - a.stats.aura)[0];
+    boardLabel(ctx, 'GOALS', 28, 262, 'left', 20);
+    ctx.font = aeroFont(22, 800);
     ctx.textAlign = 'left';
-    ctx.font = led(22, 700);
-    ctx.fillStyle = '#3d5a72';
-    ctx.fillText('GOALS', 24, 232);
-    ctx.fillStyle = '#cfe6ff';
-    ctx.fillText(goals || '— none yet —', 130, 232);
-    ctx.fillStyle = '#3d5a72';
-    ctx.fillText('AURA KING', 24, 280);
-    ctx.fillStyle = '#ffd700';
-    ctx.fillText(
+    ctx.fillStyle = BOARD.value;
+    ctx.fillText(goals || '— none yet —', 126, 262);
+    const auraKing = [...roster].sort((a, b) => b.stats.aura - a.stats.aura)[0];
+    boardLabel(ctx, 'AURA KING', 28, 296, 'left', 20);
+    boardGlow(
+      ctx,
       auraKing.stats.aura > 0 ? `${auraKing.name} +${auraKing.stats.aura}` : '— vacant —',
-      160,
-      280,
+      172, 296, 22, '#ffd700', 'left', 800,
     );
 
     this.rig.scoreTexture.needsUpdate = true;

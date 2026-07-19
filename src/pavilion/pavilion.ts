@@ -35,6 +35,7 @@ import {
   PlaneGeometry,
   RingGeometry,
   SphereGeometry,
+  SRGBColorSpace,
   TubeGeometry,
   Vector3,
   type Object3D,
@@ -573,16 +574,24 @@ function buildFurnishings(root: Group): { canvas: HTMLCanvasElement; texture: Ca
   // the keeper's left, angled back at the court, scaled up to read from
   // the arc. PavilionSystem redraws the canvas.
   const canvas = document.createElement('canvas');
-  canvas.width = 640;
-  canvas.height = 320;
+  // 2× supersample (logical 640×320) so the feed reads from the arc.
+  canvas.width = 1280;
+  canvas.height = 640;
+  canvas.getContext('2d')!.scale(2, 2);
   const texture = new CanvasTexture(canvas);
   texture.minFilter = LinearFilter;
+  // Canvas pixels are sRGB — sampled as linear they gamma-lift, washing the
+  // dark board face out to pale blue.
+  texture.colorSpace = SRGBColorSpace;
+  // A true LED face: black diffuse + emissive-only, no env reflections —
+  // otherwise sunlight and the sky env map wash the dark panel to pale blue.
   const screenMat = new MeshStandardMaterial({
-    map: texture,
+    color: '#000000',
     emissiveMap: texture,
     emissive: new Color('#ffffff'),
-    emissiveIntensity: 0.9,
-    roughness: 0.4,
+    emissiveIntensity: 1.15,
+    roughness: 1,
+    envMapIntensity: 0,
   });
   const screen = new Mesh(new PlaneGeometry(3.2, 1.6), screenMat);
   const sg = new Group();
