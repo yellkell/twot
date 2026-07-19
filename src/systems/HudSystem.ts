@@ -12,6 +12,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
+  SRGBColorSpace,
 } from 'three';
 import { app } from '../menu/appState.js';
 import { GOAL } from '../config.js';
@@ -40,7 +41,7 @@ export function boardAccent(accent: number, lift = 0.35): string {
 }
 
 const W = 1024;
-const H = 288;
+const H = 320;
 
 export class HudSystem extends createSystem({}) {
   private mesh!: Mesh;
@@ -59,8 +60,9 @@ export class HudSystem extends createSystem({}) {
     this.ctx.textBaseline = 'middle';
     this.texture = new CanvasTexture(canvas);
     this.texture.minFilter = LinearFilter;
+    this.texture.colorSpace = SRGBColorSpace; // keep the dark board face dark
     this.mesh = new Mesh(
-      new PlaneGeometry(2.3, 0.65),
+      new PlaneGeometry(2.55, 0.797),
       new MeshBasicMaterial({ map: this.texture, transparent: true }),
     );
     this.mesh.name = 'scoreboard';
@@ -89,39 +91,39 @@ export class HudSystem extends createSystem({}) {
 
     // Column dividers.
     ctx.fillStyle = BOARD.hairline;
-    ctx.fillRect(330, 30, 1.5, 162);
-    ctx.fillRect(700, 30, 1.5, 162);
+    ctx.fillRect(330, 36, 1.5, 178);
+    ctx.fillRect(700, 36, 1.5, 178);
 
     // --- SCORE, left. ---
-    boardLabel(ctx, 'SCORE', 42, 50);
-    boardGlow(ctx, String(rally.score), 42, 126, 76, BOARD.value);
+    boardLabel(ctx, 'SCORE', 44, 58);
+    boardGlow(ctx, String(rally.score), 44, 142, 84, BOARD.value);
 
     // --- COMBO, centre — digits warm with the ball, heat bar underneath. ---
     const hot = Math.min(1, ball.heat / 1.5);
     const comboColor = hot > 0.05
       ? `rgb(255,${Math.round(212 - hot * 130)},${Math.round(110 - hot * 90)})`
       : BOARD.value;
-    boardLabel(ctx, 'COMBO', 515, 50, 'center');
-    boardGlow(ctx, `×${rally.combo}`, 515, 118, 82, comboColor, 'center');
-    heatBar(ctx, 425, 154, 180, 11, hot);
-    liveLamp(ctx, 515, 182, 150, 30, rally.live && rally.phase === 'rally');
+    boardLabel(ctx, 'COMBO', 515, 58, 'center');
+    boardGlow(ctx, `×${rally.combo}`, 515, 132, 86, comboColor, 'center');
+    heatBar(ctx, 420, 180, 190, 12, hot);
+    liveLamp(ctx, 515, 212, 156, 32, rally.live && rally.phase === 'rally');
 
     // --- IN GOAL, right — keeper, stint clock, letter track. ---
     const gk = playerById(keeperId());
-    boardLabel(ctx, `IN GOAL · ${Math.floor(rally.keeperClock)}s`, W - 42, 50, 'right');
-    boardGlow(ctx, gk.name, W - 42, 112, 42, boardAccent(gk.accent), 'right');
-    letterTrack(ctx, W - 42, 148, 36, 44, 8, rally.conceded);
+    boardLabel(ctx, `IN GOAL · ${Math.floor(rally.keeperClock)}s`, W - 44, 58, 'right');
+    boardGlow(ctx, gk.name, W - 44, 124, 44, boardAccent(gk.accent), 'right');
+    letterTrack(ctx, W - 44, 162, 38, 48, 9, rally.conceded);
 
     // --- Message band. ---
-    roundPath(ctx, 16, 206, W - 32, 68, 16);
+    roundPath(ctx, 18, 238, W - 36, 68, 16);
     ctx.fillStyle = BOARD.inset;
     ctx.fill();
-    roundPath(ctx, 16, 206, W - 32, 68, 16);
+    roundPath(ctx, 18, 238, W - 36, 68, 16);
     ctx.lineWidth = 1.5;
     ctx.strokeStyle = BOARD.hairline;
     ctx.stroke();
     if (rally.message) {
-      boardGlow(ctx, rally.message, W / 2, 241, 40, rally.messageColor, 'center');
+      boardGlow(ctx, rally.message, W / 2, 273, 40, rally.messageColor, 'center');
     } else {
       const goals = Object.entries(rally.goals)
         .sort((a, b) => b[1] - a[1])
@@ -131,7 +133,7 @@ export class HudSystem extends createSystem({}) {
       ctx.font = aeroFont(26, 700);
       ctx.textAlign = 'center';
       ctx.fillStyle = BOARD.slate;
-      ctx.fillText(goals ? `GOALS   ${goals}` : 'first to three touches makes it LIVE', W / 2, 241);
+      ctx.fillText(goals ? `GOALS   ${goals}` : 'first to three touches makes it LIVE', W / 2, 273);
     }
 
     this.texture.needsUpdate = true;
