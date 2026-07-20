@@ -28,6 +28,54 @@ const _prev = new Vector3();
 const _vLocal = new Vector3();
 const _qInv = new Quaternion();
 
+/** Woodwork bounciness — a ringing frame, not a cushion. */
+const POST_REST = 0.72;
+
+interface SweptHit {
+  /** Segment parameter of closest approach (0..1). */
+  t: number;
+  /** Contact normal (unit, from the post axis toward the ball's path). */
+  nx: number;
+  nz: number;
+}
+
+/**
+ * Swept segment-vs-circle in 2D: where does the ball's path a→b first
+ * ENTER the circle of radius `rr` around (px, pz)? The contact normal is
+ * taken at the entry point — NOT at closest approach, which is always
+ * perpendicular to the travel and would never reflect anything. Returns
+ * null for a clean miss. (Exported for the dev bench.)
+ */
+export function sweptCircle(
+  px: number, pz: number,
+  ax: number, az: number,
+  bx: number, bz: number,
+  rr: number,
+): SweptHit | null {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const fx = ax - px;
+  const fz = az - pz;
+  const A = dx * dx + dz * dz;
+  const C = fx * fx + fz * fz - rr * rr;
+  if (C <= 0) {
+    // Frame started overlapping the post — push out along the radial.
+    const d = Math.hypot(fx, fz);
+    if (d > 1e-5) return { t: 0, nx: fx / d, nz: fz / d };
+    const l = Math.sqrt(A) || 1;
+    return { t: 0, nx: -dx / l, nz: -dz / l };
+  }
+  if (A < 1e-8) return null; // not moving, not overlapping
+  const B = 2 * (fx * dx + fz * dz);
+  const disc = B * B - 4 * A * C;
+  if (disc < 0) return null;
+  const s = (-B - Math.sqrt(disc)) / (2 * A);
+  if (s < 0 || s > 1) return null; // entry outside this frame's travel
+  const cx = fx + dx * s;
+  const cz = fz + dz * s;
+  return { t: s, nx: cx / rr, nz: cz / rr };
+}
+
 export class GoalSystem extends createSystem({}) {
   private hasPrev = false;
   /** rally.time of the last strike we've already classified. */
@@ -58,6 +106,7 @@ export class GoalSystem extends createSystem({}) {
       ball.vel.multiplyScalar(Math.exp(-6 * delta));
     }
 
+    this.resolvePosts();
     if (rally.phase === 'rally') {
       this.flagShots();
       this.resolveCrossing();
@@ -66,6 +115,62 @@ export class GoalSystem extends createSystem({}) {
 
     _prev.copy(_local);
     this.hasPrev = true;
+  }
+
+  /**
+   * The woodwork, for real: both posts and the crossbar are CYLINDERS the
+   * ball reflects off — swept segment-vs-circle so fast shots can't tunnel.
+   * Catch the inner half of a post and the ball deflects IN: post-and-in
+   * is quite common in football. The shot flag survives contact for
+   * exactly that reason.
+   */
+  private resolvePosts(): void {
+    if (!this.hasPrev) return;
+    const rr = ball.radius + GOAL.postRadius;
+
+    // Posts: vertical cylinders at x = ±W/2, z = 0 — collide in the xz plane.
+    if (_local.y - ball.radius <= GOAL.height) {
+      for (const px of [-GOAL.width / 2, GOAL.width / 2]) {
+        const hit = sweptCircle(px, 0, _prev.x, _prev.z, _local.x, _local.z, rr);
+        if (!hit) continue;
+        const vn = _vLocal.x * hit.nx + _vLocal.z * hit.nz;
+        if (vn >= 0) continue; // already separating
+        _vLocal.x -= (1 + POST_REST) * vn * hit.nx;
+        _vLocal.z -= (1 + POST_REST) * vn * hit.nz;
+        const cy = _prev.y + (_local.y - _prev.y) * hit.t;
+        this.postContact(px + hit.nx * rr * 1.02, cy, hit.nz * rr * 1.02, 'OFF THE POST!');
+        return;
+      }
+    }
+
+    // Crossbar: a horizontal cylinder along x at y = H, z = 0 — the yz plane.
+    if (Math.abs(_local.x) <= GOAL.width / 2 + GOAL.postRadius) {
+      const hit = sweptCircle(GOAL.height, 0, _prev.y, _prev.z, _local.y, _local.z, rr);
+      if (!hit) return;
+      const vn = _vLocal.y * hit.nx + _vLocal.z * hit.nz;
+      if (vn >= 0) return;
+      _vLocal.y -= (1 + POST_REST) * vn * hit.nx;
+      _vLocal.z -= (1 + POST_REST) * vn * hit.nz;
+      const cx = _prev.x + (_local.x - _prev.x) * hit.t;
+      this.postContact(cx, GOAL.height + hit.nx * rr * 1.02, hit.nz * rr * 1.02, 'OFF THE BAR!');
+    }
+  }
+
+  /** Shared woodwork aftermath: park the ball at contact, ping, shout. */
+  private postContact(x: number, y: number, z: number, shout: string): void {
+    ball.vel.copy(_vLocal).applyQuaternion(arenaRefs.root.quaternion);
+    arenaToWorld(x, y, z, ball.pos);
+    ball.spin.multiplyScalar(0.6);
+    sfx.postPing();
+    spawnTouchPop(this.world, ball.pos, 0xf7fbff, 1.1);
+    // Only shout when it's clearly coming back OUT — a post-and-in gets
+    // its own (louder) headline a few frames later.
+    if (rally.phase === 'rally' && _vLocal.z > 0.5) setMessage(shout, '#ffb226', 1.6);
+    // Refresh the arena-local trackers so this frame's crossing verdict
+    // runs on the post-contact state, not the pre-contact one.
+    worldToArena(ball.pos, _local);
+    _qInv.copy(arenaRefs.root.quaternion).invert();
+    _vLocal.copy(ball.vel).applyQuaternion(_qInv);
   }
 
   /**
@@ -145,10 +250,10 @@ export class GoalSystem extends createSystem({}) {
 
     const x = _local.x;
     const y = _local.y;
+    // The woodwork itself is handled physically in resolvePosts — the
+    // crossing verdict only needs the opening between the cylinders.
     const inFrame =
       Math.abs(x) <= GOAL.width / 2 - GOAL.postRadius && y <= GOAL.height - GOAL.postRadius;
-    const inPostBand =
-      !inFrame && Math.abs(x) <= GOAL.width / 2 + GOAL.postRadius * 2 && y <= GOAL.height + GOAL.postRadius * 2;
 
     if (inFrame && rally.live) {
       this.goal();
@@ -171,18 +276,6 @@ export class GoalSystem extends createSystem({}) {
         rally.serveTimer = RALLY.serveDelay;
         rally.server = keeperId();
       }
-      return;
-    }
-    if (inPostBand) {
-      // Off the woodwork — back into play.
-      _vLocal.z = Math.abs(_vLocal.z) * 0.55;
-      _vLocal.x *= 0.8;
-      ball.vel.copy(_vLocal).applyQuaternion(arenaRefs.root.quaternion);
-      ball.pos.addScaledVector(ball.vel, 0.02);
-      sfx.postPing();
-      spawnTouchPop(this.world, ball.pos, 0xf7fbff, 1.1);
-      setMessage('OFF THE FRAME!', '#ffb226', 1.6);
-      rally.shot = null;
       return;
     }
     // Sailed wide/high.
