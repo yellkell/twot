@@ -23,6 +23,7 @@ import { twotBoard } from '../arena/banner.js';
 import {
   aeroFont,
   BOARD,
+  boardAccent,
   boardGlow,
   boardLabel,
   boardPanel,
@@ -31,14 +32,6 @@ import {
   liveLamp,
   roundPath,
 } from '../ui/aero.js';
-
-/** Accent hex lifted toward white so team colours read on the dark board. */
-export function boardAccent(accent: number, lift = 0.35): string {
-  const r = Math.round(((accent >> 16) & 0xff) * (1 - lift) + 255 * lift);
-  const g = Math.round(((accent >> 8) & 0xff) * (1 - lift) + 255 * lift);
-  const b = Math.round((accent & 0xff) * (1 - lift) + 255 * lift);
-  return `rgb(${r},${g},${b})`;
-}
 
 const W = 1024;
 const H = 320;

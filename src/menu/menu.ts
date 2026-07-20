@@ -1,10 +1,11 @@
 /**
- * The lobby: three panes of aero glass floating in front of you.
- * Centre = the big PLAY pill + difficulty; left = the CLUB SHEET (persistent
- * stats for all six of you, both positions); right = how to play. Each panel
- * is a canvas texture on a plane; MenuSystem raycasts the controllers for
- * hover + click and maps the hit UV to an action zone (the exact mechanism
- * Iron Balls used — it was too good not to harvest).
+ * The lobby: three panes of the same smoked arena-board glass the scoreboard
+ * wears — the menu speaks the board language now, not the old aero candy.
+ * Centre = the wordmark + the PLAY slot; left = the CLUB SHEET (persistent
+ * stats for all six of you, both positions, AURA last); right = how to play.
+ * Each panel is a canvas texture on a plane; MenuSystem raycasts the
+ * controllers for hover + click and maps the hit UV to an action zone (the
+ * exact mechanism Iron Balls used — it was too good not to harvest).
  */
 
 import {
@@ -14,13 +15,25 @@ import {
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
+  SRGBColorSpace,
   type Scene,
 } from 'three';
 import { app } from './appState.js';
 import { avgKeeperTime, roster } from '../game/roster.js';
 import { rally } from '../game/state.js';
 import { drawFootball } from '../arena/banner.js';
-import { AERO, aeroFont, glassPanel, headline, pillButton, swoosh } from '../ui/aero.js';
+import {
+  AERO,
+  aeroFont,
+  BOARD,
+  boardAccent,
+  boardButton,
+  boardGlow,
+  boardLabel,
+  boardPanel,
+  letterTrack,
+  roundPath,
+} from '../ui/aero.js';
 
 export type PanelId = 'play' | 'stats' | 'howto' | 'pause';
 
@@ -28,6 +41,8 @@ export type MenuAction = 'play' | 'toggle-difficulty' | 'toggle-view' | 'reset-s
 
 const PW = 512;
 const PH = 400;
+/** The PLAY pane runs taller — room for the wordmark AND the button stack. */
+const PLAY_H = 460;
 
 export interface MenuPanel {
   id: PanelId;
@@ -65,6 +80,7 @@ function makePanel(
   ctx.textBaseline = 'middle';
   const texture = new CanvasTexture(canvas);
   texture.minFilter = LinearFilter;
+  texture.colorSpace = SRGBColorSpace; // keep the dark board face dark
   const mesh = new Mesh(
     new PlaneGeometry(wMeters, hMeters),
     new MeshBasicMaterial({ map: texture, transparent: true }),
@@ -78,30 +94,39 @@ function makePanel(
   return { id, mesh, redraw, hitTest };
 }
 
-/** Centre — the marquee (the O is a football, obviously) + the PLAY pill. */
+/** Centre — the marquee (the O is a football, obviously) + the PLAY slot. */
 function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
-  glassPanel(ctx, 8, 8, PW - 16, PH - 16, { radius: 34, bubbles: 8, stroke: hover ? AERO.lime : AERO.stroke });
-  swoosh(ctx, 30, 96, PW - 120, 46);
-  headline(ctx, 'TW', PW / 2 - 92, 66, 84, AERO.aqua);
-  drawFootball(ctx, PW / 2 + 46, 64, 38, 1);
-  headline(ctx, 'T', PW / 2 + 138, 66, 84, AERO.aqua);
+  boardPanel(ctx, 8, 8, PW - 16, PLAY_H - 16, 34);
 
-  pillButton(ctx, 86, 118, PW - 172, 80, 'PLAY', AERO.lime, hover);
+  ctx.textBaseline = 'middle';
+  boardGlow(ctx, 'TW', PW / 2 - 92, 68, 80, BOARD.value, 'center');
+  drawFootball(ctx, PW / 2 + 46, 66, 36, 1);
+  boardGlow(ctx, 'T', PW / 2 + 134, 68, 80, BOARD.value, 'center');
 
-  pillButton(
+  // The TWOT-red rule — the letters' colour underlining the name they spell.
+  ctx.save();
+  ctx.shadowColor = '#ff2617';
+  ctx.shadowBlur = 12;
+  roundPath(ctx, 116, 110, PW - 232, 5, 2.5);
+  ctx.fillStyle = '#e02b1d';
+  ctx.fill();
+  ctx.restore();
+
+  boardButton(ctx, 86, 132, PW - 172, 76, 'PLAY', AERO.lime, hover);
+  boardButton(
     ctx,
     116,
-    212,
+    224,
     PW - 232,
     50,
     `BOTS: ${app.difficulty === 'pro' ? 'PRO' : 'CASUAL'}`,
     app.difficulty === 'pro' ? AERO.sun : AERO.aqua,
     hover,
   );
-  pillButton(
+  boardButton(
     ctx,
     116,
-    274,
+    286,
     PW - 232,
     50,
     app.view === 'pavilion' ? 'VIEW: PAVILION' : 'VIEW: PASSTHROUGH',
@@ -109,21 +134,31 @@ function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
     hover,
   );
 
-  ctx.font = aeroFont(21, 700);
-  ctx.fillStyle = AERO.text;
-  ctx.fillText('press A in-game to pause or leave', PW / 2, 346);
+  ctx.font = aeroFont(19, 700);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = BOARD.slate;
+  ctx.fillText('press A in-game to pause or leave', PW / 2, 354);
   if (rally.score > 0 || rally.bestCombo > 0) {
-    ctx.fillStyle = AERO.aquaDeep;
-    ctx.fillText(`last session — score ${rally.score} · best combo ×${rally.bestCombo}`, PW / 2, 376);
+    boardLabel(ctx, 'LAST SESSION', PW / 2, 390, 'center', 17);
+    boardGlow(
+      ctx,
+      `SCORE ${rally.score} · BEST COMBO ×${rally.bestCombo}`,
+      PW / 2,
+      420,
+      24,
+      '#7ed6ff',
+      'center',
+      800,
+    );
   }
 }
 
 function hitPlay(u: number, v: number): MenuAction | null {
   const x = u * PW;
-  const y = (1 - v) * PH;
-  if (x >= 86 && x <= PW - 86 && y >= 118 && y <= 198) return 'play';
-  if (x >= 116 && x <= PW - 116 && y >= 212 && y <= 262) return 'toggle-difficulty';
-  if (x >= 116 && x <= PW - 116 && y >= 274 && y <= 324) return 'toggle-view';
+  const y = (1 - v) * PLAY_H;
+  if (x >= 86 && x <= PW - 86 && y >= 132 && y <= 208) return 'play';
+  if (x >= 116 && x <= PW - 116 && y >= 224 && y <= 274) return 'toggle-difficulty';
+  if (x >= 116 && x <= PW - 116 && y >= 286 && y <= 336) return 'toggle-view';
   return null;
 }
 
@@ -131,40 +166,46 @@ function hitPlay(u: number, v: number): MenuAction | null {
 function drawStats(ctx: CanvasRenderingContext2D, hover: boolean): void {
   const W = 640;
   const H = 480;
-  glassPanel(ctx, 8, 8, W - 16, H - 16, { radius: 34, stroke: hover ? AERO.aqua : AERO.stroke });
-  headline(ctx, 'CLUB SHEET', W / 2, 52, 44, AERO.aqua);
+  boardPanel(ctx, 8, 8, W - 16, H - 16, 34);
+  ctx.textBaseline = 'middle';
+  boardGlow(ctx, 'CLUB SHEET', W / 2, 52, 40, BOARD.value, 'center');
 
-  const cols = [100, 182, 238, 294, 356, 418, 476, 534, 592];
-  const heads = ['', 'GLS', 'SHT', 'SAV', 'GK⌀', 'PAS', 'H-V', 'CMB', 'AURA'];
-  ctx.font = aeroFont(19, 800);
-  ctx.fillStyle = AERO.textDim;
+  const cols = [172, 226, 280, 334, 388, 442, 496, 550, 604];
+  const heads = ['GLS', 'AST', 'SHT', 'SAV', 'GK⌀', 'PAS', 'H-V', 'CMB', 'AURA'];
   heads.forEach((h, i) => {
-    if (h) ctx.fillText(h, cols[i], 104);
+    boardLabel(ctx, h, cols[i], 102, 'center', 17);
   });
+  ctx.fillStyle = BOARD.hairline;
+  ctx.fillRect(26, 118, W - 52, 1.5);
 
-  let y = 146;
+  let y = 150;
   for (const p of roster) {
     ctx.textAlign = 'left';
-    ctx.font = aeroFont(21, 900);
+    ctx.font = aeroFont(19, 900);
     ctx.fillStyle = `#${p.accent.toString(16).padStart(6, '0')}`;
     ctx.fillText('●', 26, y);
-    ctx.fillStyle = AERO.text;
-    ctx.fillText(p.name, 52, y);
+    ctx.fillStyle = boardAccent(p.accent);
+    ctx.fillText(p.name, 50, y);
     ctx.textAlign = 'center';
-    ctx.font = aeroFont(20, 700);
+    ctx.font = aeroFont(19, 700);
+    ctx.fillStyle = BOARD.value;
     const s = p.stats;
-    const row = [s.goals, s.shots, s.saves, avgKeeperTime(p), s.passes, s.halfVolleys, s.bestCombo];
+    const row = [s.goals, s.assists, s.shots, s.saves, avgKeeperTime(p), s.passes, s.halfVolleys, s.bestCombo];
     row.forEach((val, i) => {
-      ctx.fillText(String(val), cols[i + 1], y);
+      ctx.fillText(String(val), cols[i], y);
     });
-    // Aura, signed and coloured — the number everybody actually checks.
-    ctx.font = aeroFont(20, 900);
-    ctx.fillStyle = s.aura > 0 ? '#c99700' : s.aura < 0 ? '#9b30d0' : AERO.textDim;
-    ctx.fillText(s.aura > 0 ? `+${s.aura}` : String(s.aura), cols[8], y);
-    y += 46;
+    // Aura, signed and glowing — the number everybody actually checks.
+    if (s.aura > 0) boardGlow(ctx, `+${s.aura}`, cols[8], y, 19, '#ffd700', 'center');
+    else if (s.aura < 0) boardGlow(ctx, String(s.aura), cols[8], y, 19, '#c86bff', 'center');
+    else {
+      ctx.font = aeroFont(19, 900);
+      ctx.fillStyle = BOARD.slate;
+      ctx.fillText('0', cols[8], y);
+    }
+    y += 44;
   }
 
-  pillButton(ctx, W / 2 - 110, H - 62, 220, 42, 'reset sheet', AERO.bubblegum, hover);
+  boardButton(ctx, W / 2 - 110, H - 62, 220, 42, 'RESET SHEET', AERO.danger, hover);
 }
 
 function hitStats(u: number, v: number): MenuAction | null {
@@ -175,9 +216,10 @@ function hitStats(u: number, v: number): MenuAction | null {
 }
 
 /** Right — how to play. */
-function drawHowto(ctx: CanvasRenderingContext2D, hover: boolean): void {
-  glassPanel(ctx, 8, 8, PW - 16, PH - 16, { radius: 34, bubbles: 5, stroke: hover ? AERO.sun : AERO.stroke });
-  headline(ctx, 'THE RULES', PW / 2, 54, 44, AERO.sun);
+function drawHowto(ctx: CanvasRenderingContext2D, _hover: boolean): void {
+  boardPanel(ctx, 8, 8, PW - 16, PH - 16, 34);
+  ctx.textBaseline = 'middle';
+  boardGlow(ctx, 'THE RULES', PW / 2, 52, 40, AERO.sun, 'center');
 
   const lines: Array<[string, string]> = [
     ['KEEP IT UP', 'slap it — palms, fingers, or HEAD it'],
@@ -188,31 +230,37 @@ function drawHowto(ctx: CanvasRenderingContext2D, hover: boolean): void {
     ['ONE BOUNCE', 'dead — unless you hit it AS it lands'],
     ['THE FENCE', 'bounce off it fine — over it, in goal'],
     ['SAVED?', 'shooter goes in goal. keeper goes wide'],
-    ['T·W·O·T', 'concede 4 and face the slap line: ±AURA'],
   ];
-  let y = 98;
+  let y = 96;
   for (const [head, body] of lines) {
     ctx.textAlign = 'left';
-    ctx.font = aeroFont(19, 900);
-    ctx.fillStyle = AERO.aquaDeep;
+    ctx.font = aeroFont(18, 900);
+    ctx.fillStyle = '#7ed6ff';
     ctx.fillText(head, 36, y);
     ctx.font = aeroFont(17, 700);
-    ctx.fillStyle = AERO.text;
+    ctx.fillStyle = BOARD.value;
     ctx.fillText(body, 172, y);
     y += 33;
   }
+  // The last law gets the real letters: a mini T·W·O·T track, fully lit.
+  letterTrack(ctx, 152, y - 13, 24, 26, 5, 4);
+  ctx.textAlign = 'left';
+  ctx.font = aeroFont(17, 700);
+  ctx.fillStyle = BOARD.value;
+  ctx.fillText('concede 4 and face the slap line: ±AURA', 172, y);
   ctx.textAlign = 'center';
 }
 
 /**
  * The in-game pause panel — press A (or X) to summon/dismiss it.
- * Two pills: back to the ball, or back to the lobby.
+ * Three slots: back to the ball, flip the view, or back to the lobby.
  */
 function drawPause(ctx: CanvasRenderingContext2D, hover: boolean): void {
-  glassPanel(ctx, 8, 8, PW - 16, PH - 16, { radius: 34, bubbles: 4, stroke: hover ? AERO.lime : AERO.stroke });
-  headline(ctx, 'PAUSED', PW / 2, 60, 52, AERO.aqua);
-  pillButton(ctx, 96, 104, PW - 192, 70, 'RESUME', AERO.lime, hover);
-  pillButton(
+  boardPanel(ctx, 8, 8, PW - 16, PH - 16, 34);
+  ctx.textBaseline = 'middle';
+  boardGlow(ctx, 'PAUSED', PW / 2, 56, 46, BOARD.value, 'center');
+  boardButton(ctx, 96, 104, PW - 192, 70, 'RESUME', AERO.lime, hover);
+  boardButton(
     ctx,
     96,
     190,
@@ -222,10 +270,11 @@ function drawPause(ctx: CanvasRenderingContext2D, hover: boolean): void {
     app.view === 'pavilion' ? AERO.violet : AERO.aqua,
     hover,
   );
-  pillButton(ctx, 96, 276, PW - 192, 70, 'LEAVE — LOBBY', AERO.bubblegum, hover);
+  boardButton(ctx, 96, 276, PW - 192, 70, 'LEAVE — LOBBY', AERO.danger, hover);
   ctx.font = aeroFont(19, 700);
-  ctx.fillStyle = AERO.textDim;
-  ctx.fillText('press A to dismiss', PW / 2, 372);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = BOARD.slate;
+  ctx.fillText('press A to dismiss', PW / 2, 368);
 }
 
 function hitPause(u: number, v: number): MenuAction | null {
@@ -249,7 +298,7 @@ export function createMenu(scene: Scene): Menu {
   const group = new Group();
   group.name = 'lobby-menu';
 
-  const play = makePanel('play', 1.0, 0.78, drawPlay, hitPlay);
+  const play = makePanel('play', 1.0, 0.9, drawPlay, hitPlay, PW, PLAY_H);
   play.mesh.position.set(0, 1.5, -1.55);
 
   const stats = makePanel('stats', 1.1, 0.83, drawStats, hitStats, 640, 480);

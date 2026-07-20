@@ -139,6 +139,7 @@ export function strikeBall(
   if (shot && strikerId === keeperId() && shot.shooter !== strikerId) {
     striker.stats.saves += 1;
     rally.shot = null;
+    ball.lastHitPrevBy = ball.lastHitBy; // the save joins the touch chain
     ball.lastHitBy = strikerId;
     ball.lastHitAt = rally.time;
     ball.lastTouchAt = rally.time;
