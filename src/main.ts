@@ -49,6 +49,13 @@ World.create(container, {
     camera: { position: [0, 1.6, 0] },
   },
 }).then((world) => {
+  // Quest's default MAXIMUM fixed foveation (three's WebXRManager ships
+  // `foveation = 1.0`) can show a head-locked dark boundary band on
+  // high-contrast scenes — the dark board panes against bright sky here
+  // are exactly that. Full resolution first; if perf ever needs it back,
+  // ~0.2 stays under the visible threshold (reported ≈0.34).
+  world.renderer.xr.setFoveation(0);
+
   // See far: the pavilion's sky dome (380 m) and mountains (235 m) must
   // never clip in and out as you pitch your head — that reads as the whole
   // horizon lurching. Three propagates this to the XR session's depthFar.
