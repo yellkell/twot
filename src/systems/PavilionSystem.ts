@@ -11,7 +11,7 @@ import { app, type ViewMode } from '../menu/appState.js';
 import { playerById, roster } from '../game/roster.js';
 import { ball, keeperId, rally } from '../game/state.js';
 import { arenaRefs } from '../arena/arena.js';
-import { drawFootball } from '../arena/banner.js';
+import { drawWordmark } from '../arena/banner.js';
 import { boardAccent } from '../ui/aero.js';
 import {
   AERO,
@@ -84,10 +84,7 @@ export class PavilionSystem extends createSystem({}) {
     boardPanel(ctx, 4, 4, W - 8, H - 8, 20);
 
     // Header: the wordmark (the O is a football, obviously) + who's in goal.
-    boardGlow(ctx, 'TW', 26, 34, 40, AERO.lime, 'left');
-    const twW = ctx.measureText('TW').width;
-    drawFootball(ctx, 26 + twW + 21, 34, 18, 1);
-    boardGlow(ctx, 'T', 26 + twW + 43, 34, 40, AERO.lime, 'left');
+    drawWordmark(ctx, 26, 34, 40, AERO.lime, 'left');
     const gk = playerById(keeperId());
     boardGlow(ctx, `${gk.name} · ${Math.floor(rally.keeperClock)}s`, W - 26, 34, 26, boardAccent(gk.accent), 'right');
     const gkW = ctx.measureText(`${gk.name} · ${Math.floor(rally.keeperClock)}s`).width;
@@ -95,18 +92,16 @@ export class PavilionSystem extends createSystem({}) {
     ctx.fillStyle = BOARD.hairline;
     ctx.fillRect(18, 60, W - 36, 1.5);
 
-    // Main row: score | combo + heat + lamp | the letter track.
-    boardLabel(ctx, 'SCORE', 28, 92);
-    boardGlow(ctx, String(rally.score), 28, 148, 58, BOARD.value);
-
+    // Main row: combo + heat + lamp | the letter track. (The combo IS the
+    // score — the old points column was noise and got switched off.)
     const hot = Math.min(1, ball.heat / 1.5);
     const comboColor = hot > 0.05
       ? `rgb(255,${Math.round(212 - hot * 130)},${Math.round(110 - hot * 90)})`
       : BOARD.value;
-    boardLabel(ctx, 'COMBO', 320, 92, 'center');
-    boardGlow(ctx, `×${rally.combo}`, 320, 146, 58, comboColor, 'center');
-    heatBar(ctx, 262, 182, 116, 9, hot);
-    liveLamp(ctx, 320, 207, 116, 25, rally.live && rally.phase === 'rally');
+    boardLabel(ctx, 'COMBO', 170, 92, 'center');
+    boardGlow(ctx, `×${rally.combo}`, 170, 146, 58, comboColor, 'center');
+    heatBar(ctx, 112, 182, 116, 9, hot);
+    liveLamp(ctx, 170, 207, 116, 25, rally.live && rally.phase === 'rally');
 
     letterTrack(ctx, W - 26, 96, 44, 56, 9, rally.conceded);
 

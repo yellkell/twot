@@ -82,24 +82,19 @@ export class HudSystem extends createSystem({}) {
     ctx.textBaseline = 'middle';
     boardPanel(ctx, 6, 6, W - 12, H - 12, 34);
 
-    // Column dividers.
+    // Column divider — two columns now: the combo IS the score.
     ctx.fillStyle = BOARD.hairline;
-    ctx.fillRect(330, 36, 1.5, 178);
-    ctx.fillRect(700, 36, 1.5, 178);
+    ctx.fillRect(560, 36, 1.5, 178);
 
-    // --- SCORE, left. ---
-    boardLabel(ctx, 'SCORE', 44, 58);
-    boardGlow(ctx, String(rally.score), 44, 142, 84, BOARD.value);
-
-    // --- COMBO, centre — digits warm with the ball, heat bar underneath. ---
+    // --- COMBO, left — digits warm with the ball, heat bar underneath. ---
     const hot = Math.min(1, ball.heat / 1.5);
     const comboColor = hot > 0.05
       ? `rgb(255,${Math.round(212 - hot * 130)},${Math.round(110 - hot * 90)})`
       : BOARD.value;
-    boardLabel(ctx, 'COMBO', 515, 58, 'center');
-    boardGlow(ctx, `×${rally.combo}`, 515, 132, 86, comboColor, 'center');
-    heatBar(ctx, 420, 180, 190, 12, hot);
-    liveLamp(ctx, 515, 212, 156, 32, rally.live && rally.phase === 'rally');
+    boardLabel(ctx, 'COMBO', 280, 58, 'center');
+    boardGlow(ctx, `×${rally.combo}`, 280, 132, 92, comboColor, 'center');
+    heatBar(ctx, 160, 180, 240, 12, hot);
+    liveLamp(ctx, 280, 212, 156, 32, rally.live && rally.phase === 'rally');
 
     // --- IN GOAL, right — keeper, stint clock, letter track. ---
     const gk = playerById(keeperId());

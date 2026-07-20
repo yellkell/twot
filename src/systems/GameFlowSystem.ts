@@ -102,7 +102,6 @@ export class GameFlowSystem extends createSystem({}) {
   // --- session ---------------------------------------------------------------
 
   private startSession(): void {
-    rally.score = 0;
     rally.bestCombo = 0;
     rally.goals = {};
     rally.keeperClock = 0;

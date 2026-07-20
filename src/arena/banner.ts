@@ -16,7 +16,7 @@ import {
   type Object3D,
 } from 'three';
 import { GOAL } from '../config.js';
-import { aeroFont, boardPanel } from '../ui/aero.js';
+import { aeroFont, boardGlow, boardPanel } from '../ui/aero.js';
 
 const W = 1024;
 const H = 300;
@@ -86,6 +86,40 @@ export function drawFootball(ctx: CanvasRenderingContext2D, cx: number, cy: numb
     ctx.restore();
   }
   ctx.restore();
+}
+
+/**
+ * The T·W·⚽·T wordmark, laid out from measured glyph widths with even gaps
+ * so the football-O sits flush in the word instead of drifting, nudged up
+ * to the capitals' optical centre — the banner's alignment law, shared so
+ * the word is the SAME word on every surface (banner, lobby, LED feed).
+ * Returns the total width drawn.
+ */
+export function drawWordmark(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  px: number,
+  color: string,
+  align: 'center' | 'left' = 'center',
+): number {
+  // Proportions lifted from the big banner (ballR 92 / gap 40 / lift 10 @ px 210).
+  const ballR = px * 0.44;
+  const gap = px * 0.19;
+  const ballY = y - px * 0.048;
+  ctx.font = aeroFont(px, 900);
+  const wT = ctx.measureText('T').width;
+  const wW = ctx.measureText('W').width;
+  const total = wT + gap + wW + gap + ballR * 2 + gap + wT;
+  let cursor = align === 'center' ? x - total / 2 : x;
+  boardGlow(ctx, 'T', cursor + wT / 2, y, px, color, 'center');
+  cursor += wT + gap;
+  boardGlow(ctx, 'W', cursor + wW / 2, y, px, color, 'center');
+  cursor += wW + gap;
+  drawFootball(ctx, cursor + ballR, ballY, ballR, 1);
+  cursor += ballR * 2 + gap;
+  boardGlow(ctx, 'T', cursor + wT / 2, y, px, color, 'center');
+  return total;
 }
 
 export function createTitleBanner(parent: Object3D): Mesh {

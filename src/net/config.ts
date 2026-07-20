@@ -24,6 +24,6 @@ export const NET = {
   staleSeatSec: 120,
   /** Bounded network inbox — transports push, systems drain per frame. */
   inboxCap: 512,
-  /** Park capacity: 6 lineup slots' worth of humans + 2 spectators. */
-  capacity: 8,
+  /** Park capacity = the lineup: 1 keeper + 5 arc. A full park IS the game. */
+  capacity: 6,
 } as const;

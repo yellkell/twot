@@ -22,7 +22,7 @@ import { app } from './appState.js';
 import { avgKeeperTime, roster } from '../game/roster.js';
 import { rally } from '../game/state.js';
 import { park } from '../net/parkState.js';
-import { drawFootball } from '../arena/banner.js';
+import { drawWordmark } from '../arena/banner.js';
 import {
   AERO,
   aeroFont,
@@ -109,9 +109,7 @@ function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
   boardPanel(ctx, 8, 8, PW - 16, PLAY_H - 16, 34);
 
   ctx.textBaseline = 'middle';
-  boardGlow(ctx, 'TW', PW / 2 - 92, 68, 80, BOARD.value, 'center');
-  drawFootball(ctx, PW / 2 + 46, 66, 36, 1);
-  boardGlow(ctx, 'T', PW / 2 + 134, 68, 80, BOARD.value, 'center');
+  drawWordmark(ctx, PW / 2, 68, 76, BOARD.value);
 
   // The TWOT-red rule — the letters' colour underlining the name they spell.
   ctx.save();
@@ -162,8 +160,8 @@ function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
   ctx.textAlign = 'center';
   ctx.fillStyle = BOARD.slate;
   ctx.fillText(
-    rally.score > 0 || rally.bestCombo > 0
-      ? `last session — score ${rally.score} · best combo ×${rally.bestCombo}`
+    rally.bestCombo > 0
+      ? `last session — best combo ×${rally.bestCombo}`
       : 'press A in-game to pause or leave',
     PW / 2,
     436,

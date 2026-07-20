@@ -81,6 +81,13 @@ const candCol = (other: number, from: number) => collection(sigRef(other), `c${f
 
 const blank = (): string[] => Array.from({ length: NET.capacity }, () => '');
 
+// Reshape a stored array to the CURRENT capacity (a capacity change —
+// like the 8→6 trim — normalizes the park doc on the next write).
+const trimS = (a?: string[]): string[] =>
+  Array.from({ length: NET.capacity }, (_, i) => a?.[i] ?? '');
+const trimN = (a?: number[]): number[] =>
+  Array.from({ length: NET.capacity }, (_, i) => a?.[i] ?? 0);
+
 // --- Join / leave ----------------------------------------------------------
 
 export async function join(callsign: string, accent: number): Promise<void> {
@@ -111,10 +118,10 @@ export async function join(callsign: string, accent: number): Promise<void> {
       return 0;
     }
     const d = snap.data() as ParkDoc;
-    const seats = [...d.seats];
-    const uids = [...d.uids];
-    const callsigns = [...d.callsigns];
-    const accents = [...d.accents];
+    const seats = trimS(d.seats);
+    const uids = trimS(d.uids);
+    const callsigns = trimS(d.callsigns);
+    const accents = trimN(d.accents);
     // A refresh of THIS tab reclaims its old seat before hunting a new one.
     let free = seats.findIndex((s) => s === mesh.clientId);
     if (free < 0) free = seats.findIndex((s) => !s);
@@ -170,10 +177,10 @@ async function vacate(seat: number, expectCid: string): Promise<void> {
     if (!snap.exists()) return;
     const d = snap.data() as ParkDoc;
     if (d.seats[seat] !== expectCid) return;
-    const seats = [...d.seats];
-    const uids = [...d.uids];
-    const callsigns = [...d.callsigns];
-    const accents = [...d.accents];
+    const seats = trimS(d.seats);
+    const uids = trimS(d.uids);
+    const callsigns = trimS(d.callsigns);
+    const accents = trimN(d.accents);
     seats[seat] = '';
     uids[seat] = '';
     callsigns[seat] = '';

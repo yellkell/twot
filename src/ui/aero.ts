@@ -124,7 +124,12 @@ export function boardGlow(
   ctx.restore();
 }
 
-/** The T·W·O·T letter track: four cells lighting up red, left to right. */
+/**
+ * The T·W·O·T letter track: ONE quiet inset slot holding the whole word —
+ * unlit letters are just dim glyphs resting in it (no per-letter boxes;
+ * the old segmented cells read like a broken filing cabinet), and each
+ * conceded letter LIGHTS as a red cell inside the slot.
+ */
 export function letterTrack(
   ctx: CanvasRenderingContext2D,
   rightX: number, topY: number,
@@ -132,33 +137,35 @@ export function letterTrack(
   lit: number,
 ): void {
   const word = ['T', 'W', 'O', 'T'];
+  const totalW = cellW * 4 + gap * 3;
+  const leftX = rightX - totalW;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+
+  roundPath(ctx, leftX, topY, totalW, cellH, 8);
+  ctx.fillStyle = BOARD.inset;
+  ctx.fill();
+  roundPath(ctx, leftX, topY, totalW, cellH, 8);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = BOARD.hairline;
+  ctx.stroke();
+
   for (let i = 0; i < 4; i++) {
-    const cx = rightX - (4 - i) * (cellW + gap) + gap;
-    const isLit = i < lit;
-    roundPath(ctx, cx, topY, cellW, cellH, 7);
-    if (isLit) {
+    const cx = leftX + i * (cellW + gap);
+    ctx.font = aeroFont(cellH * 0.62, 900);
+    if (i < lit) {
       ctx.save();
       ctx.shadowColor = '#ff2617';
       ctx.shadowBlur = 8;
+      roundPath(ctx, cx + 1, topY + 1, cellW - 2, cellH - 2, 6);
       ctx.fillStyle = '#e02b1d';
       ctx.fill();
       ctx.restore();
-      ctx.font = aeroFont(cellH * 0.62, 900);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(word[i], cx + cellW / 2, topY + cellH / 2 + 1);
     } else {
-      ctx.fillStyle = BOARD.inset;
-      ctx.fill();
-      roundPath(ctx, cx, topY, cellW, cellH, 7);
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = BOARD.hairline;
-      ctx.stroke();
-      ctx.font = aeroFont(cellH * 0.62, 900);
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      ctx.fillText(word[i], cx + cellW / 2, topY + cellH / 2 + 1);
     }
+    ctx.fillText(word[i], cx + cellW / 2, topY + cellH / 2 + 1);
   }
 }
 

@@ -81,8 +81,6 @@ export const rally = {
   touched: [] as string[],
   /** True once liveAfterTouches distinct players have had it. */
   live: false,
-  /** Session running score (rally points + banked goals). */
-  score: 0,
   bestCombo: 0,
   /** Session goal tally per player id (the scoreboard column). */
   goals: {} as Record<string, number>,
@@ -171,7 +169,6 @@ export function registerTouch(playerId: string, halfVolley: boolean): TouchResul
     passCompleted = true;
     playerById(prev).stats.passes += 1;
     rally.combo += 1;
-    rally.score += rally.combo * RALLY.passPoints;
   }
   if (halfVolley) {
     p.stats.halfVolleys += 1;

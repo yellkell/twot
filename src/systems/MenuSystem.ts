@@ -22,7 +22,7 @@ import {
 import { app, saveDifficulty, saveView, type AppState } from '../menu/appState.js';
 import { createMenu, createPausePanel, type Menu, type MenuAction, type MenuPanel, type PanelId } from '../menu/menu.js';
 import { resetClub } from '../game/roster.js';
-import { joinPark, leavePark, rerollCallsign } from '../net/parkState.js';
+import { joinPark, leavePark, park, rerollCallsign } from '../net/parkState.js';
 import * as sfx from '../audio/sfx.js';
 
 const _origin = new Vector3();
@@ -161,8 +161,15 @@ export class MenuSystem extends createSystem({}) {
         break;
       case 'join-park':
         // Async: the periodic redraw keeps the status label honest while
-        // the lazy Firebase chunk loads and the seat claim lands.
-        void joinPark().then(() => this.menu.redrawAll(this.hovered));
+        // the lazy Firebase chunk loads and the seat claim lands. The park
+        // IS the game — a successful join drops you straight into a bot
+        // kickabout (humans take over bot slots when the shared rally
+        // lands next round).
+        void joinPark().then(() => {
+          if (park.status === 'in-park') app.state = 'playing';
+          this.applyState();
+          this.menu.redrawAll(this.hovered);
+        });
         break;
       case 'leave-park':
         void leavePark().then(() => this.menu.redrawAll(this.hovered));

@@ -28,7 +28,7 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if request.auth != null
         && request.resource.data.seats is list
-        && request.resource.data.seats.size() <= 8;
+        && request.resource.data.seats.size() <= 6;
       allow delete: if false;
 
       // WebRTC signaling: per-pair offer/answer docs + trickle-ICE

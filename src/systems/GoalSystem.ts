@@ -207,17 +207,9 @@ export class GoalSystem extends createSystem({}) {
       spawnRisingText(this.world, ball.pos, `ASSIST — ${playerById(assisterId).name}`, '#7ed6ff', 0.9);
     }
 
-    let banked = rally.combo * RALLY.goalPoints;
     let flavour = '';
-    if (shot?.power) {
-      banked += RALLY.powerGoalBonus;
-      flavour = 'POWER ';
-    }
-    if (shot?.halfVolley) {
-      banked += RALLY.halfVolleyGoalBonus;
-      flavour = 'HALF-VOLLEY ';
-    }
-    rally.score += banked;
+    if (shot?.power) flavour = 'POWER ';
+    if (shot?.halfVolley) flavour = 'HALF-VOLLEY ';
 
     // --- THE TWOT LAW: light the keeper's next letter, big enough for all. ---
     // FULL HOUSE: every attacker touched this sequence before it went in —
@@ -248,7 +240,7 @@ export class GoalSystem extends createSystem({}) {
     } else if (fullHouse) {
       setMessage(`FULL HOUSE ${flavour}GOAL! all five touched — TWO letters: "${letters}"`, '#ffb226', 3.4);
     } else {
-      setMessage(`${flavour}GOAL! ${scorer.name} +${banked} — that's "${letters}"`, '#9be82a', 3.2);
+      setMessage(`${flavour}GOAL! ${scorer.name} — that's "${letters}"`, '#9be82a', 3.2);
     }
 
     rally.shot = null;
