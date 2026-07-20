@@ -22,6 +22,7 @@ import {
 import { app, saveDifficulty, saveView, type AppState } from '../menu/appState.js';
 import { createMenu, createPausePanel, type Menu, type MenuAction, type MenuPanel, type PanelId } from '../menu/menu.js';
 import { resetClub } from '../game/roster.js';
+import { joinPark, leavePark, rerollCallsign } from '../net/parkState.js';
 import * as sfx from '../audio/sfx.js';
 
 const _origin = new Vector3();
@@ -157,6 +158,17 @@ export class MenuSystem extends createSystem({}) {
         break;
       case 'reset-stats':
         resetClub();
+        break;
+      case 'join-park':
+        // Async: the periodic redraw keeps the status label honest while
+        // the lazy Firebase chunk loads and the seat claim lands.
+        void joinPark().then(() => this.menu.redrawAll(this.hovered));
+        break;
+      case 'leave-park':
+        void leavePark().then(() => this.menu.redrawAll(this.hovered));
+        break;
+      case 'reroll-callsign':
+        rerollCallsign();
         break;
     }
     this.applyState();

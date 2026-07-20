@@ -14,6 +14,7 @@
 import { SessionMode, World } from '@iwsdk/core';
 import { buildArena } from './arena/arena.js';
 import { setupEnvironment } from './arena/environment.js';
+import { NetSystem } from './systems/NetSystem.js';
 import { GameFlowSystem } from './systems/GameFlowSystem.js';
 import { HandsSystem } from './systems/HandsSystem.js';
 import { BotPlayersSystem } from './systems/BotPlayersSystem.js';
@@ -23,6 +24,7 @@ import { MenuSystem } from './systems/MenuSystem.js';
 import { HudSystem } from './systems/HudSystem.js';
 import { FXSystem } from './systems/FXSystem.js';
 import { PavilionSystem } from './systems/PavilionSystem.js';
+import { RemotePlayersSystem } from './systems/RemotePlayersSystem.js';
 
 const container = document.getElementById('scene-container') as HTMLDivElement;
 
@@ -56,12 +58,16 @@ World.create(container, {
   setupEnvironment(world);
   buildArena(world);
 
-  // The referee first, so the whole frame shares one clock.
+  // The network first — this frame's remote state lands before anyone
+  // reads it (a no-op status check when solo). Then the referee, so the
+  // whole frame shares one clock.
+  world.registerSystem(NetSystem);
   world.registerSystem(GameFlowSystem);
   // Strikes (yours, then the bots'), then ball physics, then the goal's
   // verdict on wherever the ball ended up.
   world.registerSystem(HandsSystem);
   world.registerSystem(BotPlayersSystem);
+  world.registerSystem(RemotePlayersSystem);
   world.registerSystem(BallSystem);
   world.registerSystem(GoalSystem);
   // Lobby, scoreboard, transient FX + fire particle pools.

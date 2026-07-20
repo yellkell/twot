@@ -21,6 +21,7 @@ import {
 import { app } from './appState.js';
 import { avgKeeperTime, roster } from '../game/roster.js';
 import { rally } from '../game/state.js';
+import { park } from '../net/parkState.js';
 import { drawFootball } from '../arena/banner.js';
 import {
   AERO,
@@ -37,7 +38,16 @@ import {
 
 export type PanelId = 'play' | 'stats' | 'howto' | 'pause';
 
-export type MenuAction = 'play' | 'toggle-difficulty' | 'toggle-view' | 'reset-stats' | 'resume' | 'leave';
+export type MenuAction =
+  | 'play'
+  | 'toggle-difficulty'
+  | 'toggle-view'
+  | 'reset-stats'
+  | 'resume'
+  | 'leave'
+  | 'join-park'
+  | 'leave-park'
+  | 'reroll-callsign';
 
 const PW = 512;
 const PH = 400;
@@ -112,13 +122,22 @@ function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
   ctx.fill();
   ctx.restore();
 
-  boardButton(ctx, 86, 132, PW - 172, 76, 'PLAY', AERO.lime, hover);
+  boardButton(ctx, 86, 126, PW - 172, 68, 'PLAY', AERO.lime, hover);
+
+  // The park slot — its label doubles as the connection status line.
+  const parkLabel =
+    park.status === 'connecting' ? 'CONNECTING…'
+    : park.status === 'in-park' ? `IN THE PARK · ${park.count}/${park.capacity}`
+    : park.status === 'error' ? 'PARK OFFLINE — RETRY'
+    : 'JOIN PARK';
+  boardButton(ctx, 86, 204, PW - 172, 54, parkLabel, '#ffd700', hover);
+
   boardButton(
     ctx,
     116,
-    224,
+    268,
     PW - 232,
-    50,
+    46,
     `BOTS: ${app.difficulty === 'pro' ? 'PRO' : 'CASUAL'}`,
     app.difficulty === 'pro' ? AERO.sun : AERO.aqua,
     hover,
@@ -126,39 +145,41 @@ function drawPlay(ctx: CanvasRenderingContext2D, hover: boolean): void {
   boardButton(
     ctx,
     116,
-    286,
+    322,
     PW - 232,
-    50,
+    46,
     app.view === 'pavilion' ? 'VIEW: PAVILION' : 'VIEW: PASSTHROUGH',
     app.view === 'pavilion' ? AERO.violet : AERO.aqua,
     hover,
   );
 
-  ctx.font = aeroFont(19, 700);
+  // Callsign row: the name other punters see, with the reroll die.
+  boardLabel(ctx, 'CALLSIGN', 92, 396, 'left', 16);
+  boardGlow(ctx, park.callsign, 196, 396, 20, '#7ed6ff', 'left', 800);
+  boardButton(ctx, 368, 382, 48, 28, '⟳', AERO.aqua, hover);
+
+  ctx.font = aeroFont(17, 700);
   ctx.textAlign = 'center';
   ctx.fillStyle = BOARD.slate;
-  ctx.fillText('press A in-game to pause or leave', PW / 2, 354);
-  if (rally.score > 0 || rally.bestCombo > 0) {
-    boardLabel(ctx, 'LAST SESSION', PW / 2, 390, 'center', 17);
-    boardGlow(
-      ctx,
-      `SCORE ${rally.score} · BEST COMBO ×${rally.bestCombo}`,
-      PW / 2,
-      420,
-      24,
-      '#7ed6ff',
-      'center',
-      800,
-    );
-  }
+  ctx.fillText(
+    rally.score > 0 || rally.bestCombo > 0
+      ? `last session — score ${rally.score} · best combo ×${rally.bestCombo}`
+      : 'press A in-game to pause or leave',
+    PW / 2,
+    436,
+  );
 }
 
 function hitPlay(u: number, v: number): MenuAction | null {
   const x = u * PW;
   const y = (1 - v) * PLAY_H;
-  if (x >= 86 && x <= PW - 86 && y >= 132 && y <= 208) return 'play';
-  if (x >= 116 && x <= PW - 116 && y >= 224 && y <= 274) return 'toggle-difficulty';
-  if (x >= 116 && x <= PW - 116 && y >= 286 && y <= 336) return 'toggle-view';
+  if (x >= 86 && x <= PW - 86 && y >= 126 && y <= 194) return 'play';
+  if (x >= 86 && x <= PW - 86 && y >= 204 && y <= 258) {
+    return park.status === 'in-park' ? 'leave-park' : 'join-park';
+  }
+  if (x >= 116 && x <= PW - 116 && y >= 268 && y <= 314) return 'toggle-difficulty';
+  if (x >= 116 && x <= PW - 116 && y >= 322 && y <= 368) return 'toggle-view';
+  if (x >= 368 && x <= 416 && y >= 382 && y <= 410) return 'reroll-callsign';
   return null;
 }
 
