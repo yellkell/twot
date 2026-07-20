@@ -144,6 +144,7 @@ export function strikeBall(
     ball.lastHitAt = rally.time;
     ball.lastTouchAt = rally.time;
     ball.bouncedAt = -1; // whatever bounce fed the save, the ball's live again
+    ball.bounces = 0;
     sfx.saveThump();
     spawnTouchPop(world, ball.pos, striker.accent, 1.4);
     if (ball.heat > 0.3) spawnFireImpact(world, ball.pos, PALETTE.ember);

@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "curveball-a147e"
+  },
+  "targets": {
+    "curveball-a147e": {
+      "hosting": {
+        "playtwot": ["playtwot"]
+      }
+    }
+  }
+}

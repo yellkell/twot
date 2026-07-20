@@ -48,6 +48,8 @@ export const ball = {
   heat: 0,
   /** Time of first floor contact this rally, or -1 — the half-volley clock. */
   bouncedAt: -1,
+  /** Floor contacts since the last touch — a SHOT rides its first for free. */
+  bounces: 0,
   /** Who last struck it, and when (rehit windows, attribution). */
   lastHitBy: '',
   /** The toucher BEFORE lastHitBy — the assist candidate when a goal lands. */
@@ -81,8 +83,6 @@ export const rally = {
   touched: [] as string[],
   /** True once liveAfterTouches distinct players have had it. */
   live: false,
-  /** Session running score (rally points + banked goals). */
-  score: 0,
   bestCombo: 0,
   /** Session goal tally per player id (the scoreboard column). */
   goals: {} as Record<string, number>,
@@ -171,7 +171,6 @@ export function registerTouch(playerId: string, halfVolley: boolean): TouchResul
     passCompleted = true;
     playerById(prev).stats.passes += 1;
     rally.combo += 1;
-    rally.score += rally.combo * RALLY.passPoints;
   }
   if (halfVolley) {
     p.stats.halfVolleys += 1;
@@ -196,6 +195,7 @@ export function registerTouch(playerId: string, halfVolley: boolean): TouchResul
   ball.lastHitAt = rally.time;
   ball.lastTouchAt = rally.time;
   ball.bouncedAt = -1; // a clean touch clears the bounce clock
+  ball.bounces = 0;
   rally.shot = null; // any new touch supersedes a tracked shot
 
   return { passCompleted, wentLive, halfVolley, combo: rally.combo };
@@ -212,6 +212,7 @@ export function resetRally(server: string): void {
   ball.lastHitBy = '';
   ball.lastHitPrevBy = '';
   ball.bouncedAt = -1;
+  ball.bounces = 0;
   ball.spin.set(0, 0, 0);
   ball.vel.set(0, 0, 0);
   ball.heat = 0;

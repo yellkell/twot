@@ -14,6 +14,7 @@
 import { SessionMode, World } from '@iwsdk/core';
 import { buildArena } from './arena/arena.js';
 import { setupEnvironment } from './arena/environment.js';
+import { NetSystem } from './systems/NetSystem.js';
 import { GameFlowSystem } from './systems/GameFlowSystem.js';
 import { HandsSystem } from './systems/HandsSystem.js';
 import { BotPlayersSystem } from './systems/BotPlayersSystem.js';
@@ -23,6 +24,7 @@ import { MenuSystem } from './systems/MenuSystem.js';
 import { HudSystem } from './systems/HudSystem.js';
 import { FXSystem } from './systems/FXSystem.js';
 import { PavilionSystem } from './systems/PavilionSystem.js';
+import { RemotePlayersSystem } from './systems/RemotePlayersSystem.js';
 
 const container = document.getElementById('scene-container') as HTMLDivElement;
 
@@ -47,6 +49,13 @@ World.create(container, {
     camera: { position: [0, 1.6, 0] },
   },
 }).then((world) => {
+  // Quest's default MAXIMUM fixed foveation (three's WebXRManager ships
+  // `foveation = 1.0`) can show a head-locked dark boundary band on
+  // high-contrast scenes — the dark board panes against bright sky here
+  // are exactly that. Full resolution first; if perf ever needs it back,
+  // ~0.2 stays under the visible threshold (reported ≈0.34).
+  world.renderer.xr.setFoveation(0);
+
   // See far: the pavilion's sky dome (380 m) and mountains (235 m) must
   // never clip in and out as you pitch your head — that reads as the whole
   // horizon lurching. Three propagates this to the XR session's depthFar.
@@ -56,12 +65,16 @@ World.create(container, {
   setupEnvironment(world);
   buildArena(world);
 
-  // The referee first, so the whole frame shares one clock.
+  // The network first — this frame's remote state lands before anyone
+  // reads it (a no-op status check when solo). Then the referee, so the
+  // whole frame shares one clock.
+  world.registerSystem(NetSystem);
   world.registerSystem(GameFlowSystem);
   // Strikes (yours, then the bots'), then ball physics, then the goal's
   // verdict on wherever the ball ended up.
   world.registerSystem(HandsSystem);
   world.registerSystem(BotPlayersSystem);
+  world.registerSystem(RemotePlayersSystem);
   world.registerSystem(BallSystem);
   world.registerSystem(GoalSystem);
   // Lobby, scoreboard, transient FX + fire particle pools.

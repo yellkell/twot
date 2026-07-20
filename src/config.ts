@@ -231,13 +231,6 @@ export const RALLY = {
   liveAfterTouches: 3,
   /** Bonus combo steps for a half volley (it counts, and then some). */
   halfVolleyBonus: 2,
-  /** Points: each rally pass pays combo × this. */
-  passPoints: 10,
-  /** A goal banks combo × this. */
-  goalPoints: 50,
-  /** Extra for scoring with a power shot / half volley. */
-  powerGoalBonus: 100,
-  halfVolleyGoalBonus: 150,
   /** Dead-ball pause before the closest player serves. */
   serveDelay: 1.6,
   /** Rotation ceremony length after a save (keeper swap + teleports). */
