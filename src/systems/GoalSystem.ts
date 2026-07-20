@@ -117,7 +117,10 @@ export class GoalSystem extends createSystem({}) {
     if (t <= 0 || t > 1.6) return;
     const x = _local.x + _vLocal.x * t;
     const y = _local.y + _vLocal.y * t - 0.5 * gravityNow() * t * t;
-    if (Math.abs(x) > GOAL.width / 2 + GOAL.missMargin || y > GOAL.height + GOAL.missMargin || y < -0.2) {
+    // A predicted-underground arrival isn't a miss — it's a BOUNCE shot
+    // (the ball skips off the turf en route), and those count now: flag
+    // it so the keeper reacts and the first bounce rides free.
+    if (Math.abs(x) > GOAL.width / 2 + GOAL.missMargin || y > GOAL.height + GOAL.missMargin) {
       return;
     }
 

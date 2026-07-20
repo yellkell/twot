@@ -245,10 +245,18 @@ export class BallSystem extends createSystem({}) {
       ball.vel.x *= 0.8;
       ball.vel.z *= 0.8;
       ball.spin.multiplyScalar(0.5);
-      if (alive && ball.bouncedAt < 0) {
-        // The half-volley clock starts NOW. GameFlowSystem calls the death.
-        ball.bouncedAt = rally.time;
-        sfx.slap(0.2, 1);
+      if (alive) {
+        ball.bounces += 1;
+        if (rally.shot && ball.bounces === 1) {
+          // A SHOT rides its first bounce for free — the effort lives until
+          // the second touch of turf. (House rule: one bounce isn't dead
+          // when the ball's goalward.) No death clock armed.
+          sfx.slap(0.2, 1);
+        } else if (ball.bouncedAt < 0) {
+          // The half-volley clock starts NOW. GameFlowSystem calls the death.
+          ball.bouncedAt = rally.time;
+          sfx.slap(0.2, 1);
+        }
       }
     }
 

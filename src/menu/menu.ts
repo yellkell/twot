@@ -244,7 +244,7 @@ function drawHowto(ctx: CanvasRenderingContext2D, _hover: boolean): void {
     ['KEEP IT UP', 'slap it — palms, fingers, or HEAD it'],
     ['3 TOUCHES', 'three players in — the ball is LIVE'],
     ['COMBO', 'every pass shrinks it… then it burns'],
-    ['SHOOT', 'power-slap the live ball at the goal'],
+    ['SHOOT', 'slap it goalward — one bounce rides free'],
     ['NOT LIVE?', 'score too soon and YOU go in goal'],
     ['ONE BOUNCE', 'dead — unless you hit it AS it lands'],
     ['THE FENCE', 'bounce off it fine — over it, in goal'],
