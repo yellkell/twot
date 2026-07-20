@@ -19,6 +19,8 @@ export interface PlayerStats {
   passes: number;
   shots: number;
   goals: number;
+  /** Passes a team-mate buried with their very next touch. */
+  assists: number;
   halfVolleys: number;
   saves: number;
   /** Lifetime seconds spent as the keeper (rally time only). */
@@ -48,6 +50,7 @@ function freshStats(): PlayerStats {
     passes: 0,
     shots: 0,
     goals: 0,
+    assists: 0, // old saved club sheets pick this up via the freshStats spread
     halfVolleys: 0,
     saves: 0,
     keeperSeconds: 0,

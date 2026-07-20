@@ -50,6 +50,8 @@ export const ball = {
   bouncedAt: -1,
   /** Who last struck it, and when (rehit windows, attribution). */
   lastHitBy: '',
+  /** The toucher BEFORE lastHitBy — the assist candidate when a goal lands. */
+  lastHitPrevBy: '',
   lastHitAt: -1000,
   /** Whether the last strike was a power slap (shot flavour + FX). */
   lastHitPower: false,
@@ -61,6 +63,8 @@ export const ball = {
 
 export interface ShotFlag {
   shooter: string;
+  /** Who teed the shooter up — the previous toucher, or null (solo work). */
+  assistFrom: string | null;
   power: boolean;
   halfVolley: boolean;
   /** Predicted arena-local x where it crosses the goal plane (keeper AI). */
@@ -187,6 +191,7 @@ export function registerTouch(playerId: string, halfVolley: boolean): TouchResul
     }
   }
 
+  ball.lastHitPrevBy = prev;
   ball.lastHitBy = playerId;
   ball.lastHitAt = rally.time;
   ball.lastTouchAt = rally.time;
@@ -205,6 +210,7 @@ export function resetRally(server: string): void {
   rally.savedShooter = null;
   rally.server = server;
   ball.lastHitBy = '';
+  ball.lastHitPrevBy = '';
   ball.bouncedAt = -1;
   ball.spin.set(0, 0, 0);
   ball.vel.set(0, 0, 0);

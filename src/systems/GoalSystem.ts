@@ -125,6 +125,8 @@ export class GoalSystem extends createSystem({}) {
     shooter.stats.shots += 1;
     rally.shot = {
       shooter: shooter.id,
+      assistFrom:
+        ball.lastHitPrevBy && ball.lastHitPrevBy !== shooter.id ? ball.lastHitPrevBy : null,
       power: ball.lastHitPower,
       halfVolley: ball.lastHitHalfVolley,
       aimX: x,
@@ -193,6 +195,17 @@ export class GoalSystem extends createSystem({}) {
     const scorer = playerById(scorerId);
     scorer.stats.goals += 1;
     rally.goals[scorerId] = (rally.goals[scorerId] ?? 0) + 1;
+
+    // --- THE ASSIST LAW: whoever teed it up gets the mark — a pass buried
+    // with the very next touch. Keepers can assist (a clearance hammered
+    // home next touch counts).
+    const assisterId =
+      shot?.assistFrom ??
+      (ball.lastHitPrevBy && ball.lastHitPrevBy !== scorerId ? ball.lastHitPrevBy : null);
+    if (assisterId) {
+      playerById(assisterId).stats.assists += 1;
+      spawnRisingText(this.world, ball.pos, `ASSIST — ${playerById(assisterId).name}`, '#7ed6ff', 0.9);
+    }
 
     let banked = rally.combo * RALLY.goalPoints;
     let flavour = '';

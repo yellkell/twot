@@ -12,7 +12,7 @@ import { playerById, roster } from '../game/roster.js';
 import { ball, keeperId, rally } from '../game/state.js';
 import { arenaRefs } from '../arena/arena.js';
 import { drawFootball } from '../arena/banner.js';
-import { boardAccent } from './HudSystem.js';
+import { boardAccent } from '../ui/aero.js';
 import {
   AERO,
   aeroFont,
